@@ -1,0 +1,18 @@
+export const SITE_NAME = "Land in Coorg";
+export const SITE_TAGLINE = "Verified local property marketplace for Coorg";
+export const SITE_DESCRIPTION =
+  "Find verified land, coffee estates, plots and homes across Coorg (Kodagu). Every listing is reviewed before it goes live.";
+
+/** Canonical origin without trailing slash. */
+export function siteUrl(path = ""): string {
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return `${base}${path.startsWith("/") || path === "" ? path : `/${path}`}`;
+}
+
+export function mediaUrl(mediaId: string, variant: "full" | "thumb" = "full"): string {
+  return `/media/${mediaId}/${variant}`;
+}
+
+export function propertyPath(slug: string): string {
+  return `/property/${slug}`;
+}

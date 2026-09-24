@@ -7026,6 +7026,22 @@ Evidence: redacted trace, screenshot, query plan, request ID, report
 Defect ID / owner / retest build / accepted limitation:
 ```
 
+### 10.1a Automated coverage implemented (24 September 2026)
+
+Automated tests now exist for the case families below. "Covered" means an assertion exists and passes in the named file; it does not close parameter instances that are not listed, and all other cases remain NOT RUN.
+
+| Test file | Case families (partial unless noted) |
+|---|---|
+| `tests/db/inventory.test.ts` | RLS-001, RLS-007, GAP-22 inventory, PERF (index-backed public plans) |
+| `tests/db/lifecycle.test.ts` | LIFE-001, LIFE-002 (all 8×7 state/action pairs × owner/admin/other seller/buyer), LIFE-003, LIFE-008, DB-005, DB-006, GAP-01, GAP-09 |
+| `tests/db/access.test.ts` | RLS-002–006, RLS-008, ROLE-001/003/004, DOC-002, DOC-006, ENQ (idempotency, self-contact, parties, rate limit), SAVE, HISTORY, MEDIA-002, MEDIA-009, STOR-004 |
+| `src/lib/security.test.ts` | AUTH-002, AUTH-003, AUTH-007, MEDIA-003, DOC-004 (uncompressed scan), API error mapping, SEC log redaction, ROLE-004 schema |
+| `src/services/sms/send-sms-hook.test.ts` | SMS-001, SMS-002, SMS-003, SMS-004, SMS-006, SMS-007 (hook-side limits) |
+| `tests/integration/tigris.test.ts` (live staging) | STOR-001, STOR-002, STOR-003, STOR-005, MEDIA-007 |
+| `tests/integration/supabase-flow.test.ts` (live staging) | AUTH-001 (profile provisioning), ROLE-002, PROP draft, MEDIA-001, DOC-001, DOC-004, LIFE-001 happy path, ENQ-001, RLS-008 |
+
+Concurrency cases that need independent connections (CONC, AUTH-011 races, last-super-admin race) are NOT RUN: PGlite is single-connection.
+
 ### 10.2 Regression maintenance
 
 Add a named regression case for each production/QA defect. Update the reverse traceability map whenever a source requirement changes. Schema changes must update grants/RLS/object inventory and fixtures in the same change. Preserve existing IDs; append new numbers rather than renumbering references. Coverage counts must distinguish case families from expanded parameter instances and implemented tests from this blueprint. Review all BLOCKED/N/A cases at each release; do not let a temporary gap become permanent silent scope loss.

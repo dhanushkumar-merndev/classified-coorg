@@ -1357,3 +1357,19 @@ SearchProvider
 ```
 
 This makes it easier to replace MSG91, Brevo or another provider later without rewriting business logic.
+
+---
+
+## 45. Implementation Notes (24 September 2026)
+
+Where the build refines or deviates from the examples above. Evidence and status: `continue.md` §29.
+
+- **Next.js 16**: Middleware is now `src/proxy.ts`. It only refreshes Supabase session cookies and redirects signed-out visitors from `/dashboard` and `/admin`; authorization happens in `src/lib/auth/dal.ts` (roles and suspension read from the database per request, never from JWT claims).
+- **Authorization layers (§8)**: UI → service (`requireActor`) → database. Mutations run with the user's own session so RLS, column grants and `SECURITY DEFINER` functions (`transition_property`, `create_enquiry`, …) decide. The service role is used only for server-only steps (upload sessions, rate limiter, webhook receipts, audit writes, admin reads needing private columns), and those functions re-check the actor.
+- **State machine (§30)**: authoritative table `app.property_transitions`, mirrored in `src/lib/domain/property-lifecycle.ts`. `status` is changed only by `transition_property()`; `verification_status` is a generated column so the two cannot contradict. Content is locked outside `draft`/`changes_required` by trigger, for every caller. Submission snapshots content, media and documents into immutable `property_revisions`; reviews must name that revision.
+- **Public eligibility (GAP-02)**: `is_listed` generated column + `app.listing_visible()` (inlined SQL). Anon RLS uses it alone so the `where is_listed` partial indexes apply; signed-in public queries must add `onlyPubliclyListed()` (`src/lib/listing/public-filter.ts`). Seller suspension and location deactivation propagate by trigger.
+- **Storage keys (§13)**: `quarantine/{uploadSessionId}` → `properties/{propertyId}/{mediaId}/full.webp|thumb.webp` and `documents/{propertyId}/{documentId}.pdf|webp`. Revision binding lives in the database snapshot, not the key path; ids are never reused, so keys are immutable.
+- **Delivery**: `/media/{mediaId}/{full|thumb}` (anon lookup, RLS decides, 300 s public cache); `/api/media/preview/...` (owner/admin, no-store); `/api/documents/{id}` (authorized proxy, attachment, sandbox CSP, admin reads audited). No presigned download URLs are issued.
+- **Rate limiting (§29)**: atomic fixed windows in `app.rate_limits` (hashed keys) with policies in `app.rate_limit_policies`. Per-phone OTP limits live in the Send SMS hook, because Supabase Auth is reachable directly with the public key.
+- **Region choices**: Supabase `ap-south-1`; Tigris buckets in `sin` (Singapore), the nearest single region to Mumbai — Tigris has no India region.
+- **Environment files**: Supabase CLI credentials come from `supabase login`, not `.env`.

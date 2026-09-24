@@ -1,26 +1,139 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Land in Coorg design tokens (design.md §4–8). Light theme only. */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-draft: var(--draft);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.5rem;
+
+  /* Surfaces */
+  --background: #fbfcf9;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #f3f5f1;
+  --accent: #eaf1ec;
+
+  /* Text */
+  --foreground: #17211b;
+  --card-foreground: #17211b;
+  --popover-foreground: #17211b;
+  --accent-foreground: #17211b;
+  --muted-foreground: #5f6b63;
+  --subtle: #8a948d;
+
+  /* Brand */
+  --primary: #1f5a3d;
+  --primary-hover: #184a32;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2933;
+  --secondary-foreground: #ffffff;
+
+  /* Lines */
+  --border: #e3e8e3;
+  --border-strong: #cbd3cc;
+  --input: #cbd3cc;
+  --ring: #1f5a3d;
+
+  /* Status (use only where status meaning is required) */
+  --success: #1d7a4d;
+  --warning: #d89a2b;
+  --destructive: #c74747;
+  --info: #2f6db3;
+  --draft: #6d7480;
+
+  /* Admin charts */
+  --chart-1: #1f5a3d;
+  --chart-2: #4f9a6e;
+  --chart-3: #d89a2b;
+  --chart-4: #2f6db3;
+  --chart-5: #6d7480;
+
+  /* Admin navigation (charcoal) */
+  --sidebar: #1f2933;
+  --sidebar-foreground: #e6ebe7;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #1f2933;
+  --sidebar-accent: #2b3743;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #34414e;
+  --sidebar-ring: #8fc3a6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

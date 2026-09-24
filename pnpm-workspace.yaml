@@ -1,3 +1,4 @@
 allowBuilds:
+  '@tigrisdata/cli': false
   sharp: false
   unrs-resolver: false

@@ -5,28 +5,28 @@ This file is the implementation continuation guide.
 
 Use it after `design.md`, `architecture.md`, and `test.md`.
 
-Updated 24 September 2026: read sections 23–28 for the gap register, optimization tasks, private Tigris storage, AI CLI/API readiness, Mumbai deployment and expanded QA gates. Original implementation tasks remain uncompleted unless actual build/test evidence exists.
+Updated 24 September 2026: read sections 23–29 (§29 = implementation evidence) for the gap register, optimization tasks, private Tigris storage, AI CLI/API readiness, Mumbai deployment and expanded QA gates. Original implementation tasks remain uncompleted unless actual build/test evidence exists.
 
 ---
 
 ## 1. Phase 0 — Project Setup
 
 - [ ] Create GitHub repository
-- [ ] Create Next.js App Router project
-- [ ] Enable TypeScript strict mode
-- [ ] Install Tailwind CSS
+- [x] Create Next.js App Router project
+- [x] Enable TypeScript strict mode
+- [x] Install Tailwind CSS
 - [ ] Install shadcn/ui
 - [ ] Install Lucide icons
 - [ ] Install Apache ECharts
 - [ ] Install React Hook Form
-- [ ] Install Zod
-- [ ] Install Supabase client/server helpers
-- [ ] Install Vitest
+- [x] Install Zod
+- [x] Install Supabase client/server helpers
+- [x] Install Vitest
 - [ ] Install Playwright
 - [ ] Install axe integration
-- [ ] Configure ESLint
+- [x] Configure ESLint
 - [ ] Configure Prettier
-- [ ] Create `.env.example`
+- [x] Create `.env.example`
 - [ ] Create staging environment
 - [ ] Configure correct Vercel project/team and Mumbai function region bom1
 - [ ] Implement AI CLI/API readiness preflight from section 28
@@ -55,30 +55,30 @@ Updated 24 September 2026: read sections 23–28 for the gap register, optimizat
 
 ## 3. Phase 2 — Supabase Setup
 
-- [ ] Create Supabase project
-- [ ] Configure database
-- [ ] Create profiles table
-- [ ] Create roles table
-- [ ] Create user_roles table
-- [ ] Create locations table
-- [ ] Create properties table
-- [ ] Create property_media table
-- [ ] Create property_documents table
-- [ ] Create property_features table
-- [ ] Create favorites table
-- [ ] Create enquiries table
-- [ ] Create recently_viewed table
-- [ ] Create verification_reviews table
-- [ ] Create admin_notes table
-- [ ] Create audit_logs table
-- [ ] Create notifications table
-- [ ] Create articles table
-- [ ] Add indexes
-- [ ] Enable RLS
-- [ ] Create RLS policies
-- [ ] Seed initial roles
-- [ ] Seed Coorg locations
-- [ ] Seed isolated test accounts
+- [x] Create Supabase project
+- [x] Configure database
+- [x] Create profiles table
+- [x] Create roles table
+- [x] Create user_roles table
+- [x] Create locations table
+- [x] Create properties table
+- [x] Create property_media table
+- [x] Create property_documents table
+- [x] Create property_features table
+- [x] Create favorites table
+- [x] Create enquiries table
+- [x] Create recently_viewed table
+- [x] Create verification_reviews table
+- [x] Create admin_notes table
+- [x] Create audit_logs table
+- [x] Create notifications table
+- [x] Create articles table
+- [x] Add indexes
+- [x] Enable RLS
+- [x] Create RLS policies
+- [x] Seed initial roles
+- [x] Seed Coorg locations
+- [ ] Seed isolated test accounts — live integration tests create run-scoped `@example.test` users; persistent role fixtures pending
 - [ ] Complete missing schema/version/event/permission stores from GAP-09 and GAP-22
 
 ---
@@ -87,15 +87,15 @@ Updated 24 September 2026: read sections 23–28 for the gap register, optimizat
 
 - [ ] Configure Supabase Auth
 - [ ] Build phone login screen
-- [ ] Integrate MSG91
-- [ ] Add OTP resend cooldown
-- [ ] Add OTP rate limiting
+- [ ] Integrate MSG91 — adapter + Send SMS hook implemented and unit-tested; live MSG91 send and Supabase hook registration pending (see §29)
+- [x] Add OTP resend cooldown
+- [x] Add OTP rate limiting
 - [ ] Build OTP verification screen
-- [ ] Create session handling
-- [ ] Add protected-route helpers
-- [ ] Add role helpers
-- [ ] Add logout
-- [ ] Add suspended-user handling
+- [x] Create session handling
+- [x] Add protected-route helpers
+- [x] Add role helpers
+- [x] Add logout
+- [x] Add suspended-user handling
 
 ---
 
@@ -167,17 +167,17 @@ Updated 24 September 2026: read sections 23–28 for the gap register, optimizat
 
 ## 7. Phase 6 — Storage
 
-- [ ] Create private Tigris property-media bucket and environment isolation
-- [ ] Add server-authorized stable application delivery for approved public photos
-- [ ] Create private Tigris documents and avatars buckets
-- [ ] Implement scoped presigned quarantine upload, byte validation and immutable finalization
-- [ ] Configure Tigris credentials, CORS and separate object restore procedure
-- [ ] Add upload validation
-- [ ] Add file-size limits
-- [ ] Add MIME validation
-- [ ] Generate thumbnails
-- [ ] Add image optimization
-- [ ] Authenticated no-store document proxy and explicitly bounded presigned access where required
+- [x] Create private Tigris property-media bucket and environment isolation
+- [x] Add server-authorized stable application delivery for approved public photos
+- [x] Create private Tigris documents and avatars buckets
+- [x] Implement scoped presigned quarantine upload, byte validation and immutable finalization
+- [ ] Configure Tigris credentials, CORS and separate object restore procedure — scoped staging key and localhost PUT-only CORS done; production origin and restore procedure pending
+- [x] Add upload validation
+- [x] Add file-size limits
+- [x] Add MIME validation
+- [x] Generate thumbnails
+- [x] Add image optimization
+- [x] Authenticated no-store document proxy and explicitly bounded presigned access where required
 - [ ] Delete orphaned files
 - [ ] Add upload retry UX
 
@@ -266,8 +266,8 @@ Updated 24 September 2026: read sections 23–28 for the gap register, optimizat
 - [ ] Contact Owner CTA
 - [ ] Login gate
 - [ ] Enquiry form
-- [ ] Duplicate protection
-- [ ] Rate limiting
+- [x] Duplicate protection
+- [x] Rate limiting
 - [ ] Seller notification
 - [ ] Buyer confirmation
 - [ ] Enquiry status
@@ -903,3 +903,47 @@ Use already available authorized credentials; request missing account sign-in th
 - [ ] Run staging E2E/region/provider smoke, then the reviewed release process and safe production smoke. No deployment is claimed until a real deployment succeeds and is verified.
 
 Official references: [Tigris SDK](https://github.com/tigrisdata/storage), [Tigris CLI](https://www.npmjs.com/package/@tigrisdata/cli), [Supabase CLI](https://supabase.com/docs/reference/cli), [Supabase regions](https://supabase.com/docs/guides/platform/regions), [Vercel CLI](https://vercel.com/docs/cli), [Vercel region configuration](https://vercel.com/docs/project-configuration/vercel-json), [GitHub CLI auth](https://cli.github.com/manual/gh_auth_status).
+
+## 29. Implementation Status and Evidence — 24 September 2026
+
+Checked items above have automated or live evidence; anything without evidence stays unchecked. Re-run the commands below after every change.
+
+### Evidence
+
+| Area | Evidence | Command |
+|---|---|---|
+| Schema, RLS, grants, lifecycle, uploads, rate limits | 52 DB tests on real Postgres 18 (PGlite) emulating Supabase roles: full 8×7×4 transition matrix, RLS per actor, exact grant/function allowlists, definer `search_path`, index-backed public plans | `pnpm test:db` |
+| Auth helpers, SMS hook, MSG91 adapter, validation | 56 unit tests: phone normalization, safe redirects, signed/tampered/replayed hooks, per-phone limits, provider failure classes, byte sniffing, PDF scan, redaction | `pnpm test` |
+| Live Tigris (staging) | 6 tests: private buckets deny unsigned GET/PUT, presigned PUT bound to size/type/key, image pipeline strips EXIF | `pnpm vitest run tests/integration/tigris.test.ts` |
+| Live Supabase + Tigris (staging) | 6 tests: trigger-provisioned least-privilege profile, seller onboarding, draft → upload/finalize → submit → review → approve → public, unsafe PDF rejected, enquiry idempotency/self-contact, suspension hides listing | `pnpm vitest run tests/integration/supabase-flow.test.ts` |
+| Mutation check | Opening the documents policy or removing the edit lock makes DOC-002 / GAP-01 tests fail | manual, repeat before release |
+| Type-check, lint, production build | clean | `pnpm typecheck && pnpm lint && pnpm build` |
+
+### Environment (staging)
+
+- Supabase project `gtwzpyzdfowmfmlxycfl`, region `ap-south-1`, Postgres 17; migrations `20260924000100`–`000400` applied with `supabase db push`. Remote checks: RLS on every public table, anon executes only the 5 allowlisted functions, server-only tables have no client grants, 9 locations seeded.
+- Tigris buckets `landincoorg-staging-{media,documents,avatars}`: private, location `sin` (Singapore — nearest single region to Mumbai; user decision), snapshots on, object ACLs off, CORS `http://localhost:3000` PUT + Content-Type only. Access key `landincoorg-staging-app`: ReadWrite on those three buckets only.
+- Staging data: integration runs leave soft-deleted listings and suspended `test-*@example.test` users (append-only audit/revision tables prevent hard deletes by design).
+
+### Decisions adopted as PROPOSED baselines (Product sign-off needed)
+
+Taken from test.md §2 so work could proceed; each is one migration or config change away from revision. Full list in `supabase/README.md`.
+
+GAP-01 edit lock, GAP-02 public predicate, GAP-03 enums/limits/submission requirements, GAP-04 seller self-onboarding (agent by admin only), GAP-05 admin/super-admin matrix, GAP-08 enquiry rules, GAP-09 revision snapshots + optimistic versions, GAP-10/11 storage pipeline and document policy (attachment-only, active-content PDFs rejected), GAP-12 durable notification intents, GAP-13 transition table (unpublish/restore/override denied), GAP-17 limiter policies in `app.rate_limit_policies`.
+
+### Still BLOCKED — no values invented
+
+Listing expiry period, seller/agent inventory quotas, report workflow (GAP-06), retention periods (GAP-19), approximate vs precise public coordinates (GAP-25), RPO/RTO (GAP-20).
+
+### Pending before auth works end-to-end
+
+1. Deploy (Vercel `bom1`) so the Send SMS hook has a public HTTPS URL.
+2. Supabase dashboard: enable Phone provider; register Send SMS hook → `/api/auth/sms-hook`; put the secret in `SEND_SMS_HOOK_SECRET`; OTP length 6, expiry 300 s.
+3. MSG91: auth key + DLT OTP template id; staging `SMS_TEST_ALLOWLIST`.
+4. Remove `NEXT_PUBLIC_MSG91_WIDGET_ID` / `NEXT_PUBLIC_MSG91_TOKEN_AUTH`: the widget verifies OTPs itself, which would make MSG91 a second verifier (SMS-001). This design only uses MSG91 for delivery.
+
+### Known limits
+
+- OTP guessing through direct Supabase `/verify` calls is bounded by Supabase's built-in verification limits, not by this app.
+- The PDF active-content scan cannot see inside compressed object streams; documents are therefore always served as sandboxed, no-store attachments through the authorized proxy.
+- Public photo URLs may stay in shared caches for up to 300 s after a listing is hidden.

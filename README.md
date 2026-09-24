@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Land in Coorg — Classified Marketplace
 
-## Getting Started
+Verified land, coffee-estate and property listings for Coorg/Kodagu.
+Next.js 16 (App Router) · TypeScript · Supabase (PostgreSQL + Auth) · private Tigris storage · MSG91 · Brevo · shadcn/ui · Vercel (Mumbai).
 
-First, run the development server:
+## Specification
+
+| File | Purpose |
+|---|---|
+| `architecture.md` | System design; §45 records how the build implements it |
+| `design.md` | Design system and UX (UI uses shadcn/ui only) |
+| `test.md` | QA blueprint; §10.1a maps implemented tests to case IDs |
+| `continue.md` | Build checklist; §29 is the evidence-backed status |
+| `supabase/README.md` | Migrations, Auth dashboard settings, PROPOSED decisions |
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env        # fill in values; never commit .env
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Supabase CLI and Tigris CLI use their own logins (`pnpm dlx supabase login`, `pnpm exec tigris login`), not `.env`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm test        # unit + database tests; live integration tests run when .env has credentials
+pnpm test:db     # migrations + RLS on in-process Postgres (no Docker)
+pnpm typecheck
+pnpm lint
+pnpm build
+```
 
-## Learn More
+## Layout
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+supabase/migrations/   schema, RLS/grants, lifecycle functions, seeds
+src/proxy.ts           session refresh + optimistic redirects (Next 16 "proxy")
+src/lib/auth/          DAL (current actor from DB), phone, safe redirects
+src/lib/storage/       Tigris provider, byte validation, image processing, delivery
+src/services/          auth, property, upload, SMS (MSG91 + Send SMS hook)
+src/app/api/           sms-hook, uploads, documents proxy, media preview
+src/app/media/         public approved-photo delivery
+tests/db/              PGlite database/RLS tests
+tests/integration/     live staging Supabase/Tigris tests
+```

@@ -41,6 +41,8 @@ Use:
 
 Avoid unnecessary UI libraries.
 
+**Rule (confirmed 24 September 2026): build every UI component from shadcn/ui only.** Add components with `pnpm dlx shadcn@latest add <name>` and compose missing pieces from shadcn primitives. Do not add another component kit (MUI, Chakra, Mantine, DaisyUI, Headless UI, etc.). Sonner is used through shadcn's `sonner` component; Apache ECharts remains only for admin charts.
+
 ---
 
 ## 3. Brand Personality
