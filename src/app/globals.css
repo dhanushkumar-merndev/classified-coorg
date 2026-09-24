@@ -2,14 +2,20 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Light theme only: dark: utilities apply only under an explicit .dark class,
+   never from the OS colour-scheme preference. */
+@custom-variant dark (&:is(.dark *));
+
 /* Land in Coorg design tokens (design.md §4–8). Light theme only. */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-roboto), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-heading: var(--font-roboto), system-ui, sans-serif;
+  --font-display: var(--font-roboto), system-ui, sans-serif;
+  --color-clay: var(--clay);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -58,57 +64,83 @@
 :root {
   --radius: 0.5rem;
 
-  /* Surfaces */
-  --background: #fbfcf9;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --muted: #f3f5f1;
-  --accent: #eaf1ec;
+  /* Surfaces: warm paper rather than clinical white */
+  --background: #f7f5ef;
+  --card: #fffefa;
+  --popover: #fffefa;
+  --muted: #efece3;
+  --accent: #e6ece2;
 
   /* Text */
-  --foreground: #17211b;
-  --card-foreground: #17211b;
-  --popover-foreground: #17211b;
-  --accent-foreground: #17211b;
-  --muted-foreground: #5f6b63;
-  --subtle: #8a948d;
+  --foreground: #1a2419;
+  --card-foreground: #1a2419;
+  --popover-foreground: #1a2419;
+  --accent-foreground: #1a2419;
+  --muted-foreground: #62685e;
+  --subtle: #8b9085;
 
-  /* Brand */
-  --primary: #1f5a3d;
-  --primary-hover: #184a32;
+  /* Brand: Coorg forest green, ink, and a coffee-clay accent used sparingly */
+  --primary: #24553b;
+  --primary-hover: #1b4430;
   --primary-foreground: #ffffff;
-  --secondary: #1f2933;
-  --secondary-foreground: #ffffff;
+  --secondary: #1a2419;
+  --secondary-foreground: #f7f5ef;
+  --clay: #a4562b;
 
   /* Lines */
-  --border: #e3e8e3;
-  --border-strong: #cbd3cc;
-  --input: #cbd3cc;
-  --ring: #1f5a3d;
+  --border: #e2ddd0;
+  --border-strong: #cdc6b5;
+  --input: #d5cfc0;
+  --ring: #24553b;
 
   /* Status (use only where status meaning is required) */
   --success: #1d7a4d;
-  --warning: #d89a2b;
-  --destructive: #c74747;
+  --warning: #c98a1f;
+  --destructive: #b8412f;
   --info: #2f6db3;
   --draft: #6d7480;
 
   /* Admin charts */
-  --chart-1: #1f5a3d;
-  --chart-2: #4f9a6e;
-  --chart-3: #d89a2b;
+  --chart-1: #24553b;
+  --chart-2: #5f9a73;
+  --chart-3: #c98a1f;
   --chart-4: #2f6db3;
   --chart-5: #6d7480;
 
-  /* Admin navigation (charcoal) */
-  --sidebar: #1f2933;
-  --sidebar-foreground: #e6ebe7;
+  /* Admin navigation (ink) */
+  --sidebar: #1a2419;
+  --sidebar-foreground: #e6ebe4;
   --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #1f2933;
-  --sidebar-accent: #2b3743;
+  --sidebar-primary-foreground: #1a2419;
+  --sidebar-accent: #26332a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #34414e;
+  --sidebar-border: #2f3d33;
   --sidebar-ring: #8fc3a6;
+}
+
+/* One page width everywhere, so moving between pages never shifts content. */
+@utility wrap {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1240px;
+  padding-inline: 1.25rem;
+  @media (width >= 40rem) {
+    padding-inline: 2rem;
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+@utility eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--clay);
 }
 
 @layer base {
@@ -118,9 +150,19 @@
   html {
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
+    /* Always show the scrollbar track so short pages don't jump sideways. */
+    overflow-y: scroll;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Radix menus/selects lock scrolling and pad the body by the scrollbar
+     width; the always-on track above already reserves that space, so the extra
+     padding would shift the page sideways whenever a dropdown opens. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px !important;
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;

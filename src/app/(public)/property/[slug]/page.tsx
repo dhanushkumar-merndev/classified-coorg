@@ -106,7 +106,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   ];
 
   return (
-    <article className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:pb-16">
+    <article className="wrap pb-28 pt-8 lg:pb-20">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structured)} />
       <Breadcrumb className="mb-4">
         <BreadcrumbList>
@@ -133,31 +133,31 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
               <VerifiedBadge />
               <span className="text-sm text-muted-foreground">{PROPERTY_TYPE_LABELS[listing.property_type]}</span>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{listing.title}</h1>
+            <h1 className="font-display text-3xl leading-[1.1] text-balance md:text-[2.75rem]">{listing.title}</h1>
             <p className="flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="size-4" aria-hidden="true" /> {listing.address_text ? `${listing.address_text}, ` : ""}{locationName}, Coorg
             </p>
             <p className="text-3xl font-semibold tracking-tight lg:hidden">{formatPriceShort(listing.price)}</p>
           </header>
 
-          <dl className="grid grid-cols-2 gap-4 rounded-xl border bg-card p-5 sm:grid-cols-3">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-y py-6 sm:grid-cols-3">
             {facts.map((f) => (
               <div key={f.label}>
-                <dt className="text-xs text-muted-foreground">{f.label}</dt>
-                <dd className="mt-1 font-medium">{f.value}</dd>
+                <dt className="text-xs uppercase tracking-[0.08em] text-muted-foreground">{f.label}</dt>
+                <dd className="mt-1.5 text-lg font-medium">{f.value}</dd>
               </div>
             ))}
           </dl>
 
           {listing.description && (
             <section aria-labelledby="about-heading" className="space-y-3">
-              <h2 id="about-heading" className="text-xl font-semibold">About this property</h2>
+              <h2 id="about-heading" className="text-xl font-medium tracking-tight">About this property</h2>
               <p className="whitespace-pre-line leading-relaxed text-foreground/90">{listing.description}</p>
             </section>
           )}
 
           <section aria-labelledby="details-heading" className="space-y-3">
-            <h2 id="details-heading" className="text-xl font-semibold">Property details</h2>
+            <h2 id="details-heading" className="text-xl font-medium tracking-tight">Property details</h2>
             <ul className="grid gap-3 sm:grid-cols-3">
               {amenities.map((a) => (
                 <li key={a.label} className="flex items-center gap-2 rounded-lg border bg-card p-3 text-sm">
@@ -173,7 +173,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
 
           {listing.features.length > 0 && (
             <section aria-labelledby="features-heading" className="space-y-3">
-              <h2 id="features-heading" className="text-xl font-semibold">Features</h2>
+              <h2 id="features-heading" className="text-xl font-medium tracking-tight">Features</h2>
               <ul className="grid gap-2 sm:grid-cols-2">
                 {listing.features.map((f) => (
                   <li key={f.feature_key} className="flex items-start gap-2 text-sm">
@@ -189,7 +189,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
           )}
 
           <section aria-labelledby="location-heading" className="space-y-3">
-            <h2 id="location-heading" className="text-xl font-semibold">Location</h2>
+            <h2 id="location-heading" className="text-xl font-medium tracking-tight">Location</h2>
             <p className="text-muted-foreground">
               {listing.address_text ? `${listing.address_text}, ` : ""}{locationName}, Kodagu district, Karnataka.
               {listing.location && <> <Link href={`/locations/${listing.location.slug}`} className="text-primary hover:underline">More properties in {listing.location.name}</Link></>}
@@ -229,7 +229,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
       {similar.length > 0 && (
         <section aria-labelledby="similar-heading" className="mt-16 space-y-6">
           <Separator />
-          <h2 id="similar-heading" className="text-2xl font-semibold tracking-tight">Similar properties</h2>
+          <h2 id="similar-heading" className="font-display text-3xl">Similar properties</h2>
           <PropertyGrid listings={similar} />
         </section>
       )}

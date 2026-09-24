@@ -27,21 +27,22 @@ export function SiteHeader() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-card focus:px-3 focus:py-2">
         Skip to content
       </a>
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+      <div className="wrap flex h-16 items-center gap-4">
         <Logo />
-        <nav aria-label="Main" className="ml-6 hidden items-center gap-1 lg:flex">
+        <nav aria-label="Main" className="ml-10 hidden items-center gap-7 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                isActive(item.href) && "bg-accent text-primary",
+                "relative py-5 text-sm text-muted-foreground transition-colors hover:text-foreground",
+                "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-primary after:transition-transform",
+                isActive(item.href) && "text-foreground after:scale-x-100",
               )}
             >
               {item.label}
@@ -55,8 +56,8 @@ export function SiteHeader() {
           <Button asChild variant="ghost" className="hidden lg:inline-flex">
             <Link href="/dashboard/saved"><Heart /> Saved</Link>
           </Button>
-          <Button asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard/properties/new"><Plus /> Post property</Link>
+          <Button asChild variant="outline" className="hidden border-foreground/80 sm:inline-flex">
+            <Link href="/dashboard/properties/new"><Plus /> Post a property</Link>
           </Button>
           <AccountMenu />
           <Sheet open={open} onOpenChange={setOpen}>

@@ -495,7 +495,7 @@ function TriState({ label, name, control }: { label: string; name: "road_access"
 function SaveIndicator({ state }: { state: "idle" | "saving" | "saved" | "error" }) {
   if (state === "idle") return null;
   if (state === "saving") return <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Saving…</span>;
-  if (state === "error") return <span className="flex items-center gap-1.5 text-sm text-destructive"><AlertTriangle className="size-3.5" /> Couldn't save</span>;
+  if (state === "error") return <span className="flex items-center gap-1.5 text-sm text-destructive"><AlertTriangle className="size-3.5" /> Couldn&rsquo;t save</span>;
   return <span className="flex items-center gap-1.5 text-sm text-success"><Check className="size-3.5" /> Saved</span>;
 }
 

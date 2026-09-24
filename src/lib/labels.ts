@@ -14,6 +14,17 @@ export const PROPERTY_TYPE_LABELS: Record<string, string> = {
   other: "Other property",
 };
 
+export const PROPERTY_TYPE_BLURBS: Record<string, string> = {
+  coffee_estate: "Working Arabica and Robusta plantations, often with pepper and shade trees.",
+  agricultural_land: "Cultivable land for paddy, areca, cardamom or mixed crops.",
+  farm_land: "Smaller holdings for a farmhouse, orchard or weekend retreat.",
+  residential_plot: "Plots in and around towns, ready for a home.",
+  commercial_land: "Road-facing land for shops, offices or hospitality.",
+  house_villa: "Independent homes, bungalows and estate houses.",
+  homestay_resort: "Running homestays and resorts, or property suited to one.",
+  other: "Everything else, from forest-edge land to mixed-use parcels.",
+};
+
 export const SELLER_TYPE_LABELS: Record<string, string> = {
   owner: "Owner",
   agent: "Agent",

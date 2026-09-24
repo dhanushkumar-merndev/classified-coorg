@@ -142,8 +142,8 @@ export function DesktopFilters({ filters, locations }: Props) {
 
   const count = activeFilterCount(filters);
   return (
-    <aside aria-label="Filters" aria-busy={pending} className="hidden w-72 shrink-0 lg:block">
-      <div className="sticky top-20 space-y-4 rounded-xl border bg-card p-5">
+    <aside aria-label="Filters" aria-busy={pending} className="hidden w-64 shrink-0 border-r pr-8 lg:block">
+      <div className="sticky top-24 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Filters {count > 0 && <Badge variant="secondary" className="ml-1">{count}</Badge>}</h2>
           {count > 0 && <Button variant="link" size="sm" className="h-auto p-0" onClick={() => go({ ...filters, ...CLEARED })}>Clear all</Button>}

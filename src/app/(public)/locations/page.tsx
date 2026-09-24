@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { PageIntro } from "@/components/site/page-intro";
 import { getLocationCounts, getLocations } from "@/repositories/public-listings";
 
 export const revalidate = 300;
@@ -15,19 +16,20 @@ export default async function LocationsPage() {
   const [locations, counts] = await Promise.all([getLocations(), getLocationCounts()]);
   const towns = locations.filter((l) => l.parent_id !== null);
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Locations in Coorg</h1>
-      <p className="mt-2 max-w-2xl text-muted-foreground">Choose a town or area to see verified listings there.</p>
-      <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="list">
-        {towns.map((l) => (
-          <li key={l.id}>
-            <Link href={`/locations/${l.slug}`} className="flex h-full flex-col gap-2 rounded-xl border bg-card p-6 hover:border-primary">
-              <span className="flex items-center gap-2 text-lg font-semibold"><MapPin className="size-5 text-primary" aria-hidden="true" /> {l.name}</span>
-              <span className="text-sm text-muted-foreground">{counts[l.id] ?? 0} verified {counts[l.id] === 1 ? "listing" : "listings"}</span>
+    <div className="wrap py-12 md:py-16">
+      <PageIntro eyebrow="Locations" title="Towns and areas across Coorg" lede="Choose a town to see the verified listings there." />
+      <ol className="mt-10 grid border-t md:grid-cols-2 md:gap-x-12">
+        {towns.map((l, i) => (
+          <li key={l.id} className="border-b">
+            <Link href={`/locations/${l.slug}`} className="group flex items-baseline gap-5 py-5">
+              <span className="w-6 text-xs tabular-nums text-subtle">{String(i + 1).padStart(2, "0")}</span>
+              <span className="flex-1 text-2xl font-medium tracking-tight transition-colors group-hover:text-primary">{l.name}</span>
+              {counts[l.id] ? <span className="text-sm text-muted-foreground">{counts[l.id]} verified {counts[l.id] === 1 ? "listing" : "listings"}</span> : null}
+              <ArrowUpRight className="size-4 self-center text-primary opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
             </Link>
           </li>
         ))}
-      </ul>
+      </ol>
     </div>
   );
 }

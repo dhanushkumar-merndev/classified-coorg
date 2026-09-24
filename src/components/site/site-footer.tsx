@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Logo } from "@/components/site/logo";
-import { SITE_TAGLINE } from "@/lib/site";
 
 const COLUMNS = [
   {
@@ -31,27 +30,29 @@ const COLUMNS = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-secondary text-secondary-foreground">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
-        <div className="space-y-3">
-          <Logo inverted />
-          <p className="max-w-xs text-sm text-white/70">{SITE_TAGLINE}.</p>
+    <footer className="mt-auto border-t bg-muted/60">
+      <div className="wrap grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="space-y-4">
+          <Logo />
+          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Land, coffee estates and homes across Kodagu, each one reviewed by our team before it is published.
+          </p>
         </div>
         {COLUMNS.map((col) => (
-          <nav key={col.title} aria-label={col.title} className="space-y-3">
-            <h2 className="text-sm font-semibold text-white">{col.title}</h2>
-            <ul className="space-y-2">
+          <nav key={col.title} aria-label={col.title} className="space-y-4">
+            <h2 className="eyebrow">{col.title}</h2>
+            <ul className="space-y-2.5">
               {col.links.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-white/70 hover:text-white">{l.label}</Link>
+                  <Link href={l.href} className="text-sm text-foreground/80 hover:text-foreground hover:underline hover:underline-offset-4">{l.label}</Link>
                 </li>
               ))}
             </ul>
           </nav>
         ))}
       </div>
-      <div className="border-t border-white/10">
-        <p className="mx-auto max-w-7xl px-4 py-5 text-xs text-white/60 sm:px-6">
+      <div className="border-t">
+        <p className="wrap py-6 text-xs leading-relaxed text-muted-foreground">
           © {new Date().getFullYear()} Land in Coorg. Listing information is reviewed by the platform; buyers should complete
           independent legal verification before purchase.
         </p>

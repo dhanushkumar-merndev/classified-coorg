@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: { default: "Admin", template: "%s | A
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const actor = await requirePageActor("/admin", { anyRole: ADMIN_ROLES });
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row">
+    <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
       <aside className="bg-secondary p-4 text-white lg:w-64 lg:shrink-0">
         <div className="lg:sticky lg:top-6 space-y-6">
           <Logo inverted />
@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </p>
         </div>
       </aside>
-      <main id="main" className="min-w-0 flex-1 bg-background p-4 sm:p-6 lg:p-10">{children}</main>
+      <main id="main" className="min-w-0 flex-1 bg-background px-5 py-8 sm:px-8 lg:px-12 lg:py-12"><div className="mx-auto max-w-[1180px]">{children}</div></main>
     </div>
   );
 }

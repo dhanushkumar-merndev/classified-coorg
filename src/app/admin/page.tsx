@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
         <TrendChart title="Live listings by type" kind="bar"
           points={summary.by_type.map((t) => ({ label: PROPERTY_TYPE_LABELS[t.type] ?? t.type, value: t.count }))} />
         <TrendChart title="Live listings by location" kind="bar" points={summary.by_location.map((l) => ({ label: l.name, value: l.count }))} />
-        <div className="rounded-xl border bg-card p-5">
+        <div className="rounded-lg border bg-card p-5">
           <p className="mb-3 text-sm font-medium">Verification funnel (90 days)</p>
           <dl className="space-y-2 text-sm">
             {[["Submitted", f.submitted], ["Review started", f.reviewed], ["Approved", f.approved], ["Listings enquired on", f.enquired]].map(([l, v]) => (
@@ -44,6 +44,7 @@ export default async function AdminDashboardPage() {
             ))}
           </dl>
           <p className="mb-2 mt-5 text-sm font-medium">By status</p>
+          {Object.keys(summary.status_counts).length === 0 && <p className="text-sm text-muted-foreground">No listings yet.</p>}
           <dl className="space-y-1 text-sm">
             {Object.entries(summary.status_counts).map(([s, n]) => (
               <div key={s} className="flex justify-between"><dt className="text-muted-foreground">{STATUS_LABELS[s as keyof typeof STATUS_LABELS]}</dt><dd>{n}</dd></div>

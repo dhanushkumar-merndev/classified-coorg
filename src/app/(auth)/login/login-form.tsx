@@ -73,9 +73,9 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md rounded-2xl shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl">{step === "phone" ? "Log in or sign up" : "Enter the code"}</CardTitle>
+    <Card className="w-full max-w-md rounded-lg py-8 shadow-[0_24px_48px_-24px_rgba(26,36,25,.25)] [--card-spacing:--spacing(8)]">
+      <CardHeader className="space-y-1">
+        <CardTitle className="font-display text-3xl">{step === "phone" ? "Log in or sign up" : "Enter the code"}</CardTitle>
         <CardDescription>
           {step === "phone"
             ? "We will send a 6-digit code to your mobile number."

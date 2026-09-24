@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Building2, MapPin } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { PageIntro } from "@/components/site/page-intro";
 import { EmptyState } from "@/components/common/empty-state";
 import { PropertyGrid } from "@/components/property/property-card";
 import { ResultsPagination } from "@/components/search/results-pagination";
@@ -49,13 +50,13 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
   const children = locations.filter((l) => l.parent_id === location.id);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="wrap py-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
         { name: "Home", url: siteUrl("/") },
         { name: "Locations", url: siteUrl("/locations") },
         { name: location.name, url: siteUrl(`/locations/${location.slug}`) },
       ]))} />
-      <Breadcrumb className="mb-4">
+      <Breadcrumb className="mb-8">
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -65,18 +66,12 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
         </BreadcrumbList>
       </Breadcrumb>
 
-      <header className="max-w-3xl space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Property for sale in {location.name}</h1>
-        {location.intro ? (
-          <p className="whitespace-pre-line text-muted-foreground">{location.intro}</p>
-        ) : (
-          <p className="text-muted-foreground">Verified listings in {location.name}, Kodagu district.</p>
-        )}
-      </header>
+      <PageIntro eyebrow="Kodagu district" title={`Property for sale in ${location.name}`}
+        lede={<span className="whitespace-pre-line">{location.intro ?? `Verified listings in ${location.name}, Kodagu district.`}</span>} />
 
-      <section aria-labelledby="loc-results" className="mt-8 space-y-6">
+      <section aria-labelledby="loc-results" className="mt-10 space-y-8">
         <div className="flex items-end justify-between">
-          <h2 id="loc-results" className="text-xl font-semibold">{results.total} verified {results.total === 1 ? "listing" : "listings"}</h2>
+          <h2 id="loc-results" className="text-xl font-medium">{results.total} verified {results.total === 1 ? "listing" : "listings"}</h2>
           {results.total > 0 && <Link href={`/properties?location=${location.slug}`} className="text-sm font-medium text-primary hover:underline">Filter these results</Link>}
         </div>
         {results.items.length > 0 ? (
@@ -92,13 +87,13 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       </section>
 
       {(nearby.length > 0 || children.length > 0) && (
-        <section aria-labelledby="nearby" className="mt-14 space-y-4">
-          <h2 id="nearby" className="text-xl font-semibold">{children.length ? "Areas within " + location.name : "Nearby locations"}</h2>
+        <section aria-labelledby="nearby" className="mt-20 space-y-5 border-t pt-10">
+          <h2 id="nearby" className="text-2xl font-medium tracking-tight">{children.length ? "Areas within " + location.name : "Nearby locations"}</h2>
           <ul className="flex flex-wrap gap-2">
             {(children.length ? children : nearby).map((l) => (
               <li key={l.id}>
-                <Link href={`/locations/${l.slug}`} className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-2 text-sm hover:border-primary">
-                  <MapPin className="size-3.5 text-primary" aria-hidden="true" /> {l.name} <span className="text-muted-foreground">({counts[l.id] ?? 0})</span>
+                <Link href={`/locations/${l.slug}`} className="inline-flex items-center gap-2 rounded-md border bg-card px-4 py-2.5 text-sm hover:border-primary hover:text-primary">
+                  {l.name} <span className="text-muted-foreground">{counts[l.id] ?? 0}</span>
                 </Link>
               </li>
             ))}
@@ -107,8 +102,8 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       )}
 
       {guides.length > 0 && (
-        <section aria-labelledby="loc-guides" className="mt-14 space-y-4">
-          <h2 id="loc-guides" className="text-xl font-semibold">Buying guides</h2>
+        <section aria-labelledby="loc-guides" className="mt-16 space-y-4 border-t pt-10">
+          <h2 id="loc-guides" className="text-2xl font-medium tracking-tight">Buying guides</h2>
           <ul className="space-y-2">
             {guides.map((g) => <li key={g.id}><Link href={`/guides/${g.slug}`} className="text-primary hover:underline">{g.title}</Link></li>)}
           </ul>

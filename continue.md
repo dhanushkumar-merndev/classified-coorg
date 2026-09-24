@@ -947,3 +947,62 @@ Listing expiry period, seller/agent inventory quotas, report workflow (GAP-06), 
 - OTP guessing through direct Supabase `/verify` calls is bounded by Supabase's built-in verification limits, not by this app.
 - The PDF active-content scan cannot see inside compressed object streams; documents are therefore always served as sandboxed, no-store attachments through the authorized proxy.
 - Public photo URLs may stay in shared caches for up to 300 s after a listing is hidden.
+
+## 30. Session status — 24 September 2026 (evening) and next steps
+
+### Done this session
+
+- **Tests:** `tests/integration/supabase-flow.test.ts` now signs in through real phone OTP as the staging SELLER/ADMIN/BUYER accounts (email login is disabled). It reactivates them before and after the run, so the QA logins keep working. `pnpm test`: 128 passed.
+- **Migrations:** `20260924000500_operations` and `20260924000600_public_read_helpers` are pushed to staging. `pnpm build` passes.
+- **Seller UI:**
+  - `/dashboard/properties` (list with enquiry counts)
+  - `/new` (type picker; non-sellers are sent to profile)
+  - `/[id]` (manage page: status, review feedback, history, submit/mark sold/archive/delete draft)
+  - `/[id]/edit`: tabbed editor with versioned autosave (750 ms debounce, 3 s max wait, conflict banner, beforeunload), photo and document upload with XHR progress → finalize, cover and reorder, features, and a submit checklist that mirrors `app.property_submission_gaps`
+- **Admin panel (`/admin`):**
+  - dashboard: KPIs and lazy ECharts from `admin_dashboard_summary` / `admin_trend`
+  - verification queue and review page: photos via the preview proxy, documents via the authorized proxy, begin/approve/reject/request changes with owner message and internal notes, feature toggle, internal notes
+  - all properties (search and status filter)
+  - users: search, suspend/reactivate, grant/remove role, reason required
+  - code: `src/repositories/admin.ts`, `src/actions/admin.ts`
+- **Ops:**
+  - `/api/jobs/notifications`: claims intents → in-app notification; Brevo email only when `BREVO_API_KEY` and a confirmed email exist
+  - `/api/jobs/maintenance`: runs `run_maintenance` and deletes expired quarantine objects
+  - both require `Authorization: Bearer $CRON_SECRET`
+  - `vercel.json`: `bom1` region plus cron schedules
+- **Security and SEO:** CSP and security headers in `next.config.ts`; `robots.ts`, `sitemap.ts`, `not-found`, `error`, `global-error`.
+- **UI redesign (shadcn only):**
+  - Roboto everywhere; warm paper palette with forest green and a clay accent
+  - one `wrap` container (1240px) on every page
+  - `overflow-y: scroll` so pages never shift sideways
+  - Radix scroll-lock padding neutralized
+  - `dark:` variant tied to a `.dark` class only; the OS dark mode was greying the inputs
+  - Select dropdowns open below the trigger at trigger width
+  - hero with contour motif and a joined search bar
+  - numbered location index; property-type grid with blurbs; photo-led property cards
+  - shared `PageIntro`
+  - restyled header, footer, empty states, dashboard and admin
+- **Playwright:** `@playwright/test` and `@axe-core/playwright` installed; Chromium downloaded.
+
+### Next steps, in order
+
+1. Screenshot `/admin` again and confirm the page no longer has extra height below the layout (the chart `sr-only` tables are now wrapped in a div).
+2. Write `playwright.config.ts` (webServer `pnpm build && pnpm start`) and specs:
+   - API: uploads 401/origin, sms-hook 401, documents 404, media 404
+   - public pages plus an axe scan
+   - journeys: buyer save and enquire; seller create → edit → upload → submit; admin approve → listing public; admin suspend
+   - login uses `E2E_*_PHONE` / `E2E_*_OTP`
+   - note: the per-number OTP send limit is 60 s, so reuse one storageState per role
+3. Run the suite headed (`--headed`, `DISPLAY=:0`).
+4. Still to build: admin locations CRUD, articles CRUD, audit-log page (super admin).
+5. Real SMS needs all three:
+   - a public HTTPS URL for `/api/auth/sms-hook` (Vercel preview or a tunnel)
+   - `MSG91_OTP_TEMPLATE_ID` from a DLT-approved template
+   - Supabase hook URI updated
+   - until then only the `[auth.sms.test_otp]` numbers can log in; real numbers get "Failed to reach hook"
+6. Lint: two remaining `react-hooks/set-state-in-effect` errors, in `account-provider.tsx:63` and stock `ui/carousel.tsx`.
+7. Before launch:
+   - remove `[auth.sms.test_otp]` and run `node scripts/staging-accounts.mjs teardown`
+   - set the production CORS origin and `CRON_SECRET`
+   - add privacy/terms copy (GAP-28)
+   - remove the MSG91 widget env vars

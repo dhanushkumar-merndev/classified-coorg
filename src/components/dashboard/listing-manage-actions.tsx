@@ -83,7 +83,7 @@ export function ListingManageActions({ id, status, version }: { id: string; stat
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete this draft?</AlertDialogTitle>
-                <AlertDialogDescription>This permanently removes the draft, its photos and documents. This can't be undone.</AlertDialogDescription>
+                <AlertDialogDescription>This permanently removes the draft, its photos and documents. This can&rsquo;t be undone.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>

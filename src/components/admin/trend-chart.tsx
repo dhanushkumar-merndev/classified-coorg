@@ -18,12 +18,23 @@ export function TrendChart({ title, points, kind = "line" }: { title: string; po
       core.use([charts.LineChart, charts.BarChart, components.GridComponent, components.TooltipComponent, renderers.CanvasRenderer]);
       chart = core.init(el.current);
       chart.setOption({
-        color: ["#1f5a3d"],
-        grid: { left: 40, right: 16, top: 16, bottom: 28 },
-        tooltip: { trigger: "axis" },
-        xAxis: { type: "category", data: points.map((p) => p.label), axisLabel: { color: "#5b6670" } },
-        yAxis: { type: "value", minInterval: 1, axisLabel: { color: "#5b6670" } },
-        series: [{ type: kind, data: points.map((p) => p.value), smooth: kind === "line", areaStyle: kind === "line" ? { opacity: 0.08 } : undefined }],
+        color: ["#24553b"],
+        textStyle: { fontFamily: "var(--font-roboto), system-ui, sans-serif" },
+        grid: { left: 32, right: 8, top: 12, bottom: 24 },
+        tooltip: { trigger: "axis", borderColor: "#e2ddd0" },
+        xAxis: {
+          type: "category", data: points.map((p) => p.label),
+          axisLine: { lineStyle: { color: "#cdc6b5" } }, axisTick: { show: false }, axisLabel: { color: "#62685e", fontSize: 11 },
+        },
+        yAxis: {
+          type: "value", minInterval: 1,
+          splitLine: { lineStyle: { color: "#ece8de" } }, axisLabel: { color: "#62685e", fontSize: 11 },
+        },
+        series: [{
+          type: kind, data: points.map((p) => p.value), showSymbol: false, barMaxWidth: 28,
+          lineStyle: { width: 2 }, areaStyle: kind === "line" ? { opacity: 0.08 } : undefined,
+          itemStyle: kind === "bar" ? { borderRadius: [3, 3, 0, 0] } : undefined,
+        }],
       });
     })();
     const onResize = () => chart?.resize();
@@ -31,14 +42,23 @@ export function TrendChart({ title, points, kind = "line" }: { title: string; po
     return () => { disposed = true; window.removeEventListener("resize", onResize); chart?.dispose(); };
   }, [points, kind]);
 
+
   const total = points.reduce((s, p) => s + p.value, 0);
   return (
-    <figure className="rounded-xl border bg-card p-5">
-      <figcaption className="mb-3 text-sm font-medium">{title}</figcaption>
-      <div ref={el} className="h-64 w-full" role="img" aria-label={`${title}: ${total} in total`} />
-      <table className="sr-only"><caption>{title}</caption><tbody>
-        {points.map((p) => <tr key={p.label}><th>{p.label}</th><td>{p.value}</td></tr>)}
-      </tbody></table>
+    <figure className="relative rounded-lg border bg-card p-5">
+      <figcaption className="mb-3 flex items-baseline justify-between text-sm font-medium">
+        {title}<span className="text-xl font-medium tracking-tight">{total}</span>
+      </figcaption>
+      {points.length === 0 ? (
+        <p className="flex h-64 items-center justify-center text-sm text-muted-foreground">No data yet</p>
+      ) : (
+        <div ref={el} className="h-64 w-full" role="img" aria-label={`${title}: ${total} in total`} />
+      )}
+      <div className="sr-only">
+        <table><caption>{title}</caption><tbody>
+          {points.map((p) => <tr key={p.label}><th>{p.label}</th><td>{p.value}</td></tr>)}
+        </tbody></table>
+      </div>
     </figure>
   );
 }
