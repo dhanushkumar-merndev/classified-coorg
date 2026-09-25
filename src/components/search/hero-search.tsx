@@ -42,11 +42,11 @@ export function HeroSearch({ locations }: { locations: Array<{ slug: string; nam
 
   const segment = "flex min-w-0 flex-col gap-0.5 px-4 py-3 md:px-5 transition-colors hover:bg-muted/60 focus-within:bg-muted/60";
   const trigger = "h-7 w-full border-0 bg-transparent p-0 text-[0.95rem] font-medium shadow-none focus-visible:ring-0 [&_svg]:text-subtle";
-  const label = "text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
+  const label = "text-xs font-medium text-muted-foreground";
 
   return (
     <form onSubmit={submit} role="search" aria-label="Search properties"
-      className="grid overflow-hidden rounded-lg border border-border-strong bg-card shadow-[0_1px_0_rgba(26,36,25,.04),0_12px_32px_-16px_rgba(26,36,25,.25)] md:grid-cols-[1fr_1fr_1fr_auto] md:divide-x divide-y md:divide-y-0">
+      className="grid overflow-hidden rounded-md border bg-card shadow-[0_8px_24px_-12px_rgba(20,26,22,.16)] md:grid-cols-[1fr_1fr_1fr_auto] md:divide-x divide-y md:divide-y-0">
       <div className={segment}>
         <Label htmlFor="hero-location" className={label}>Location</Label>
         <Select value={location} onValueChange={setLocation}>

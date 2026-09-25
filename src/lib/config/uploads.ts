@@ -8,8 +8,7 @@ export const IMAGE_LIMITS = {
   maxBytes: 10 * MiB,
   /** Decompression-bomb guard for sharp. */
   maxInputPixels: 40_000_000,
-  minWidth: 400,
-  minHeight: 300,
+  // Minimum dimensions and orientation rules: src/lib/media/photo-rules.ts
   maxPerListing: 20,
   acceptedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
   fullMaxEdge: 1600,

@@ -12,10 +12,10 @@ export function VerifiedBadge({ className }: { className?: string }) {
       <TooltipTrigger asChild>
         <Badge
           tabIndex={0}
-          className={cn("gap-1 border-transparent bg-success text-white hover:bg-success", className)}
-          aria-label={`Verified. ${VERIFIED_DISCLAIMER}`}
+          className={cn("h-6 gap-1 border-transparent bg-success px-2 text-white hover:bg-success", className)}
         >
           <ShieldCheck className="size-3.5" aria-hidden="true" /> Verified
+          <span className="sr-only">. {VERIFIED_DISCLAIMER}</span>
         </Badge>
       </TooltipTrigger>
       <TooltipContent className="max-w-64 text-center">{VERIFIED_DISCLAIMER}</TooltipContent>

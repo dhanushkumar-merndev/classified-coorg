@@ -26,10 +26,13 @@ import {
   DOCUMENT_TYPE_LABELS, FEATURE_OPTIONS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, SUBMISSION_GAP_LABELS,
 } from "@/lib/labels";
 import { mediaUrl } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import type { OwnListingDetail } from "@/repositories/account";
 import type { LocationRow } from "@/repositories/public-listings";
 import { AREA_UNITS, PROPERTY_TYPES, propertyDraftPatchSchema, SELLER_TYPES, type PropertyDraftPatch } from "@/schemas/property.schema";
-import { DOCUMENT_TYPES } from "@/lib/config/uploads";
+import { DOCUMENT_TYPES, IMAGE_LIMITS } from "@/lib/config/uploads";
+import { textHasContactDetails } from "@/lib/listing/contact-details";
+import { PHOTO_RATIO_HINT, PHOTO_RULES, photoOrientation, photoSizeProblem, photoSummary } from "@/lib/media/photo-rules";
 
 const DEBOUNCE_MS = 750;
 const MAX_WAIT_MS = 3000;
@@ -47,19 +50,37 @@ function toFormValues(listing: OwnListingDetail): FormValues {
   };
 }
 
-function computeGaps(v: FormValues, mediaCount: number, hasCover: boolean, docCount: number): string[] {
+function computeGaps(v: FormValues, media: Array<{ width: number; height: number }>, hasCover: boolean, docCount: number): string[] {
   const gaps: string[] = [];
   if (!v.title || v.title.trim().length < 10) gaps.push("title");
   if (!v.description || v.description.trim().length < 50) gaps.push("description");
+  if (textHasContactDetails(`${v.title ?? ""} ${v.description ?? ""}`)) gaps.push("contact_details");
   if (!v.property_type) gaps.push("property_type");
   if (!v.seller_type) gaps.push("seller_type");
   if (!v.price) gaps.push("price");
   if (!v.area_value || !v.area_unit) gaps.push("area");
   if (!v.location_id) gaps.push("location");
-  if (mediaCount === 0) gaps.push("photos");
+  gaps.push(...photoSummary(media).gaps);
   if (!hasCover) gaps.push("cover_photo");
   if (docCount === 0) gaps.push("documents");
   return gaps;
+}
+
+/** Type, size and real (EXIF-rotated) dimensions, before any upload. */
+async function checkPhotoLocally(file: File): Promise<string | null> {
+  if (!(IMAGE_LIMITS.acceptedMimeTypes as readonly string[]).includes(file.type)) return "Use a JPEG, PNG or WebP photo.";
+  if (file.size > IMAGE_LIMITS.maxBytes) return "Larger than 10 MB. Export a smaller copy and try again.";
+  let width = 0;
+  let height = 0;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    width = bitmap.width;
+    height = bitmap.height;
+    bitmap.close();
+  } catch {
+    return "This file could not be read as an image.";
+  }
+  return photoSizeProblem(width, height);
 }
 
 function uploadWithProgress(url: string, headers: Record<string, string>, file: File, onProgress: (pct: number) => void) {
@@ -161,10 +182,17 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
   const values = form.watch();
   const mediaSorted = [...listing.media].sort((a, b) => a.sort_order - b.sort_order);
   const hasCover = mediaSorted.some((m) => m.is_cover);
-  const gaps = computeGaps(values, mediaSorted.length, hasCover, listing.documents.length);
+  const gaps = computeGaps(values, mediaSorted, hasCover, listing.documents.length);
+  const photos = photoSummary(mediaSorted);
 
   async function uploadPhoto(file: File) {
     const id = crypto.randomUUID();
+    // Checked in the browser first so a wrong file never uploads.
+    const problem = await checkPhotoLocally(file);
+    if (problem) {
+      setUploads((u) => [...u, { id, name: file.name, progress: 0, status: "error", error: problem }]);
+      return;
+    }
     setUploads((u) => [...u, { id, name: file.name, progress: 0, status: "uploading" }]);
     try {
       const initRes = await fetch("/api/uploads", {
@@ -291,7 +319,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
               <Controller name="property_type" control={form.control} render={({ field }) => (
                 <Field>
                   <FieldLabel>Property type</FieldLabel>
-                  <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+                  <Select value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }}>
                     <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>{PROPERTY_TYPES.map((t) => <SelectItem key={t} value={t}>{PROPERTY_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
                   </Select>
@@ -300,7 +328,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
               <Controller name="seller_type" control={form.control} render={({ field }) => (
                 <Field>
                   <FieldLabel>Seller type</FieldLabel>
-                  <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+                  <Select value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }}>
                     <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>{SELLER_TYPES.map((t) => <SelectItem key={t} value={t}>{SELLER_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
                   </Select>
@@ -335,7 +363,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
               <Controller name="area_unit" control={form.control} render={({ field }) => (
                 <Field>
                   <FieldLabel>Unit</FieldLabel>
-                  <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+                  <Select value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }}>
                     <SelectTrigger className="w-full"><SelectValue placeholder="Select unit" /></SelectTrigger>
                     <SelectContent>{AREA_UNITS.map((u) => <SelectItem key={u} value={u}>{AREA_UNIT_LABELS[u].many}</SelectItem>)}</SelectContent>
                   </Select>
@@ -351,7 +379,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
             <Controller name="location_id" control={form.control} render={({ field }) => (
               <Field>
                 <FieldLabel>Location</FieldLabel>
-                <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+                <Select value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }}>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select a location" /></SelectTrigger>
                   <SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -396,7 +424,14 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
         <TabsContent value="photos" className="space-y-5">
           <Card><CardContent className="space-y-4 pt-6">
             <div>
-              <Label htmlFor="photo-input" className="mb-2 block font-normal text-muted-foreground">Up to 20 photos, JPEG/PNG/WebP, 10 MB each.</Label>
+              <ul className="mb-4 grid gap-2 sm:grid-cols-3" aria-label="Photo requirements">
+                <Requirement met={photos.count >= PHOTO_RULES.minPhotos} label={`At least ${PHOTO_RULES.minPhotos} photos`} detail={`${photos.count} added`} />
+                <Requirement met={photos.portrait >= PHOTO_RULES.minPortrait} label="1 portrait photo" detail="3:4 or 9:16" />
+                <Requirement met={photos.landscape >= PHOTO_RULES.minLandscape} label="1 landscape photo" detail="4:3 or 16:9" />
+              </ul>
+              <Label htmlFor="photo-input" className="mb-2 block font-normal text-muted-foreground">
+                {PHOTO_RATIO_HINT}. JPEG, PNG or WebP, up to 10 MB each, 20 photos max.
+              </Label>
               <Input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple
                 onChange={(e) => { Array.from(e.target.files ?? []).forEach(uploadPhoto); e.target.value = ""; }} />
             </div>
@@ -404,9 +439,12 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {mediaSorted.map((m, i) => (
                 <div key={m.id} className="space-y-2">
-                  <div className="relative aspect-square overflow-hidden rounded-lg border">
+                  <div className="relative aspect-square overflow-hidden rounded-md border">
                     <PropertyImage src={mediaUrl(m.id, "thumb")} alt={m.alt_text ?? "Listing photo"} sizes="200px" />
-                    {m.is_cover && <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"><Star className="size-3" /> Cover</span>}
+                    {m.is_cover && <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground"><Star className="size-3" /> Cover</span>}
+                    <span className="absolute bottom-1.5 left-1.5 rounded-md bg-card/95 px-2 py-0.5 text-xs font-medium capitalize shadow-sm">
+                      {photoOrientation(m.width, m.height)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between gap-1">
                     <Button size="sm" variant="ghost" disabled={m.is_cover} onClick={() => reorder(mediaSorted.map((x) => x.id), m.id)} title="Set as cover"><Star className="size-4" /></Button>
@@ -496,7 +534,7 @@ function SaveIndicator({ state }: { state: "idle" | "saving" | "saved" | "error"
   if (state === "idle") return null;
   if (state === "saving") return <span className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Saving…</span>;
   if (state === "error") return <span className="flex items-center gap-1.5 text-sm text-destructive"><AlertTriangle className="size-3.5" /> Couldn&rsquo;t save</span>;
-  return <span className="flex items-center gap-1.5 text-sm text-success"><Check className="size-3.5" /> Saved</span>;
+  return <span data-testid="save-state" className="flex items-center gap-1.5 text-sm text-success"><Check className="size-3.5" /> Saved</span>;
 }
 
 function UploadProgressList({ uploads }: { uploads: UploadRow[] }) {
@@ -512,5 +550,18 @@ function UploadProgressList({ uploads }: { uploads: UploadRow[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function Requirement({ met, label, detail }: { met: boolean; label: string; detail: string }) {
+  return (
+    <li className={cn("flex items-center gap-2 rounded-md border p-3 text-sm", met ? "border-success/30 bg-success/5" : "bg-card")}>
+      {met ? <Check className="size-4 shrink-0 text-success" aria-hidden="true" /> : <X className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      <span className="min-w-0">
+        <span className="block font-medium">{label}</span>
+        <span className="text-xs text-muted-foreground">{detail}</span>
+      </span>
+      <span className="sr-only">{met ? "done" : "missing"}</span>
+    </li>
   );
 }

@@ -100,7 +100,7 @@ export async function listAdminUsers(page: number, q?: string) {
   const r = range(page);
   let query = (await createSessionClient())
     .from("profiles")
-    .select("id, full_name, phone, user_type, is_suspended, created_at, user_roles(role_id)", { count: "exact" })
+    .select("id, full_name, phone, user_type, is_suspended, created_at, user_roles!user_roles_user_id_fkey(role_id)", { count: "exact" })
     .is("deleted_at", null);
   if (q) {
     const term = q.replace(/[%_,()]/g, " ").trim();
@@ -110,4 +110,73 @@ export async function listAdminUsers(page: number, q?: string) {
   if (error) throw fromDatabaseError(error);
   const total = count ?? 0;
   return { items: (data ?? []) as unknown as AdminUserRow[], total, page: r.page, pageCount: Math.ceil(total / DASHBOARD_PAGE_SIZE) };
+}
+
+export interface AdminLocation {
+  id: string; parent_id: string | null; type: string; name: string; slug: string; seo_title: string | null;
+  seo_description: string | null; intro: string | null; is_active: boolean; sort_order: number;
+}
+
+/** Includes inactive locations; the public cached list only shows active ones. */
+export async function listAdminLocations(): Promise<AdminLocation[]> {
+  const { data, error } = await createServiceClient()
+    .from("locations")
+    .select("id, parent_id, type, name, slug, seo_title, seo_description, intro, is_active, sort_order")
+    .order("sort_order").order("name").limit(500);
+  if (error) throw fromDatabaseError(error);
+  return data ?? [];
+}
+
+export interface AdminArticle {
+  id: string; slug: string; title: string; excerpt: string | null; body: string | null;
+  status: "draft" | "published" | "archived"; seo_title: string | null; seo_description: string | null; updated_at: string;
+}
+
+export async function listAdminArticles(page: number) {
+  const r = range(page);
+  const { data, error, count } = await (await createSessionClient())
+    .from("articles")
+    .select("id, slug, title, excerpt, body, status, seo_title, seo_description, updated_at", { count: "exact" })
+    .order("updated_at", { ascending: false }).order("id").range(r.from, r.to);
+  if (error) throw fromDatabaseError(error);
+  const total = count ?? 0;
+  return { items: (data ?? []) as AdminArticle[], total, page: r.page, pageCount: Math.ceil(total / DASHBOARD_PAGE_SIZE) };
+}
+
+export interface AdminEnquiryRow {
+  id: string; status: "new" | "read" | "closed"; message: string | null; created_at: string;
+  property: { title: string | null; slug: string } | null;
+  buyer: { full_name: string | null; phone: string | null } | null;
+  seller: { full_name: string | null; phone: string | null } | null;
+}
+
+export async function listAdminEnquiries(page: number, status?: string) {
+  const r = range(page);
+  let query = (await createSessionClient())
+    .from("enquiries")
+    .select(`id, status, message, created_at, property:properties(title, slug),
+      buyer:profiles!enquiries_buyer_id_fkey(full_name, phone), seller:profiles!enquiries_seller_id_fkey(full_name, phone)`, { count: "exact" });
+  if (status === "new" || status === "read" || status === "closed") query = query.eq("status", status);
+  const { data, error, count } = await query.order("created_at", { ascending: false }).order("id").range(r.from, r.to);
+  if (error) throw fromDatabaseError(error);
+  const total = count ?? 0;
+  return { items: (data ?? []) as unknown as AdminEnquiryRow[], total, page: r.page, pageCount: Math.ceil(total / DASHBOARD_PAGE_SIZE) };
+}
+
+export interface AuditRow {
+  id: number; action: string; entity_type: string; entity_id: string | null; created_at: string;
+  metadata: Record<string, unknown>; actor: { full_name: string | null } | null;
+}
+
+/** Super-admin only (GAP-05); callers must have checked the role. */
+export async function listAuditLogs(page: number, action?: string) {
+  const r = range(page);
+  let query = createServiceClient()
+    .from("audit_logs")
+    .select("id, action, entity_type, entity_id, created_at, metadata, actor:profiles!audit_logs_actor_id_fkey(full_name)", { count: "exact" });
+  if (action) query = query.ilike("action", `${action.replace(/[%_,()]/g, "")}%`);
+  const { data, error, count } = await query.order("id", { ascending: false }).range(r.from, r.to);
+  if (error) throw fromDatabaseError(error);
+  const total = count ?? 0;
+  return { items: (data ?? []) as unknown as AuditRow[], total, page: r.page, pageCount: Math.ceil(total / DASHBOARD_PAGE_SIZE) };
 }

@@ -23,18 +23,19 @@ async function enquiry() {
   return { owner, buyer, enquiryId: r.enquiry_id, propertyId: id };
 }
 
-describe("seller enquiry status", () => {
-  test("only the seller moves new -> read -> closed; closed is final", async () => {
+describe("enquiry status (broker model)", () => {
+  test("only the platform team moves new -> read -> closed; closed is final and audited", async () => {
     const { owner, buyer, enquiryId } = await enquiry();
-    expect(await db.error(user(buyer), "select public.update_enquiry_status($1, 'read')", [enquiryId]))
-      .toBe("ENQUIRY_NOT_FOUND");
-    expect(await db.error(user(owner), "select public.update_enquiry_status($1, 'new')", [enquiryId]))
-      .toBe("VALIDATION_FAILED");
-    await db.rows(user(owner), "select public.update_enquiry_status($1, 'read')", [enquiryId]);
-    await db.rows(user(owner), "select public.update_enquiry_status($1, 'closed')", [enquiryId]);
-    const [{ r }] = await db.rows<{ r: { changed: boolean; status: string } }>(user(owner),
+    expect(await db.error(user(buyer), "select public.update_enquiry_status($1, 'read')", [enquiryId])).toBe("FORBIDDEN");
+    expect(await db.error(user(owner), "select public.update_enquiry_status($1, 'read')", [enquiryId])).toBe("FORBIDDEN");
+    expect(await db.error(user(admin), "select public.update_enquiry_status($1, 'new')", [enquiryId])).toBe("VALIDATION_FAILED");
+    await db.rows(user(admin), "select public.update_enquiry_status($1, 'read')", [enquiryId]);
+    await db.rows(user(admin), "select public.update_enquiry_status($1, 'closed')", [enquiryId]);
+    const [{ r }] = await db.rows<{ r: { changed: boolean; status: string } }>(user(admin),
       "select public.update_enquiry_status($1, 'read') as r", [enquiryId]);
     expect(r).toMatchObject({ changed: false, status: "closed" });
+    expect(await db.sql("select action from public.audit_logs where entity_type = 'enquiry' and entity_id = $1 order by id", [enquiryId]))
+      .toEqual([{ action: "enquiry.read" }, { action: "enquiry.closed" }]);
   });
 });
 
@@ -122,17 +123,15 @@ describe("admin analytics", () => {
   });
 });
 
-describe("seller inbox", () => {
-  test("only the listing's seller sees the enquiring buyer's contact", async () => {
-    const { owner, buyer } = await enquiry();
-    const stranger = await db.createUser({ roles: ["seller"] });
-    const rows = await db.rows<{ buyer_phone: string; buyer_name: string; total: number }>(user(owner),
-      "select buyer_phone, buyer_name, total from public.list_received_enquiries(null, 25, 0)");
-    const [buyerPhone] = await db.sql<{ phone: string }>("select phone from public.profiles where id = $1", [buyer]);
-    expect(rows).toEqual([{ buyer_phone: buyerPhone!.phone, buyer_name: "Test User", total: 1 }]);
-    expect(await db.rows(user(buyer), "select id from public.list_received_enquiries(null, 25, 0)")).toEqual([]);
-    expect(await db.rows(user(stranger), "select id from public.list_received_enquiries(null, 25, 0)")).toEqual([]);
-    expect(await db.rows(user(owner), "select total, unread from public.seller_enquiry_counts()"))
-      .toEqual([{ total: 1, unread: 1 }]);
+describe("owners never see buyers (broker model)", () => {
+  test("the owner gets interest counts only; the buyer inbox is closed to them", async () => {
+    const { owner, buyer, enquiryId } = await enquiry();
+    expect(await db.error(user(owner), "select id from public.list_received_enquiries(null, 25, 0)")).toMatch(/permission denied/);
+    expect(await db.rows(user(owner), "select buyer_id, message from public.enquiries where id = $1", [enquiryId])).toEqual([]);
+    expect(await db.rows(user(owner), "select total, unread from public.seller_enquiry_counts()")).toEqual([{ total: 1, unread: 1 }]);
+    expect(await db.rows(user(buyer), "select total from public.seller_enquiry_counts()")).toEqual([]);
+    // The platform team sees the buyer and the message.
+    expect(await db.rows(user(admin), "select buyer_id, message from public.enquiries where id = $1", [enquiryId]))
+      .toEqual([{ buyer_id: buyer, message: "Hello" }]);
   });
 });

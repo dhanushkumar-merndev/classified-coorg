@@ -15,14 +15,14 @@ export const PROPERTY_TYPE_LABELS: Record<string, string> = {
 };
 
 export const PROPERTY_TYPE_BLURBS: Record<string, string> = {
-  coffee_estate: "Working Arabica and Robusta plantations, often with pepper and shade trees.",
-  agricultural_land: "Cultivable land for paddy, areca, cardamom or mixed crops.",
-  farm_land: "Smaller holdings for a farmhouse, orchard or weekend retreat.",
-  residential_plot: "Plots in and around towns, ready for a home.",
-  commercial_land: "Road-facing land for shops, offices or hospitality.",
-  house_villa: "Independent homes, bungalows and estate houses.",
-  homestay_resort: "Running homestays and resorts, or property suited to one.",
-  other: "Everything else, from forest-edge land to mixed-use parcels.",
+  coffee_estate: "Working Arabica and Robusta plantations.",
+  agricultural_land: "Land for paddy, areca, cardamom or mixed crops.",
+  farm_land: "Smaller holdings for a farmhouse or orchard.",
+  residential_plot: "Plots in and around towns, ready to build.",
+  commercial_land: "Road-facing land for shops or hospitality.",
+  house_villa: "Independent homes and estate bungalows.",
+  homestay_resort: "Running homestays and resorts.",
+  other: "Everything else, from forest-edge to mixed-use.",
 };
 
 export const SELLER_TYPE_LABELS: Record<string, string> = {
@@ -67,18 +67,21 @@ export const STATUS_TONE: Record<PropertyStatus, "draft" | "warning" | "info" | 
   archived: "draft",
 };
 
-export const ENQUIRY_STATUS_LABELS: Record<string, string> = { new: "New", read: "Read", closed: "Closed" };
+export const ENQUIRY_STATUS_LABELS: Record<string, string> = { new: "New", read: "In progress", closed: "Closed" };
 
 /** app.property_submission_gaps() keys (GAP-03), for the submit checklist. */
 export const SUBMISSION_GAP_LABELS: Record<string, string> = {
   title: "Title (at least 10 characters)",
   description: "Description (at least 50 characters)",
+  contact_details: "Remove phone numbers and email addresses from the title and description",
   property_type: "Property type",
   seller_type: "Seller type",
   price: "Price",
   area: "Area and unit",
   location: "Location",
-  photos: "At least one photo",
+  photos: "At least 4 photos",
+  photo_portrait: "At least one portrait photo (3:4 or 9:16)",
+  photo_landscape: "At least one landscape photo (4:3 or 16:9)",
   cover_photo: "A cover photo",
   documents: "At least one document",
   uploads_in_progress: "Wait for uploads in progress to finish",

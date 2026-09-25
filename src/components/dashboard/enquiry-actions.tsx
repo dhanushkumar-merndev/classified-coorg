@@ -17,7 +17,7 @@ export function EnquiryActions({ enquiryId, status }: { enquiryId: string; statu
   if (status === "closed") return null;
   return (
     <div className="flex gap-2">
-      {status === "new" && <Button size="sm" variant="outline" disabled={pending} onClick={() => set("read")}>Mark as read</Button>}
+      {status === "new" && <Button size="sm" variant="outline" disabled={pending} onClick={() => set("read")}>Mark as called</Button>}
       <Button size="sm" variant="ghost" disabled={pending} onClick={() => set("closed")}>Close</Button>
     </div>
   );

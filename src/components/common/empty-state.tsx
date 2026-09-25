@@ -10,7 +10,7 @@ export function EmptyState({ icon: Icon, title, description, action }: {
   action?: { href: string; label: string };
 }) {
   return (
-    <div className="flex flex-col items-start gap-5 rounded-lg border bg-card px-6 py-10 sm:flex-row sm:items-center sm:px-10">
+    <div className="flex flex-col items-start gap-5 rounded-md border bg-card px-6 py-10 sm:flex-row sm:items-center sm:px-10">
       <Icon className="size-7 shrink-0 text-subtle" strokeWidth={1.5} aria-hidden="true" />
       <div className="flex-1 space-y-1">
         <p className="text-lg font-medium">{title}</p>

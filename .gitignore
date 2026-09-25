@@ -44,3 +44,9 @@ next-env.d.ts
 # supabase cli local state
 supabase/.temp/
 supabase/.branches/
+
+# playwright
+/e2e/.auth/
+/playwright-report/
+/test-results/
+.scratch/

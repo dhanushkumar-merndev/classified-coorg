@@ -19,9 +19,9 @@ export default async function MyEnquiriesPage({ searchParams }: PageProps<"/dash
 
   return (
     <>
-      <PageHeader title="My enquiries" description="Enquiries you have sent to sellers." />
+      <PageHeader title="My enquiries" description="Enquiries you sent to Land in Coorg. Our team calls you back." />
       {enquiries.items.length === 0 ? (
-        <EmptyState icon={MessageSquare} title="No enquiries yet" description="Use Contact owner on any listing to ask the seller a question."
+        <EmptyState icon={MessageSquare} title="No enquiries yet" description="Use Enquire now on any listing and our team will call you back."
           action={{ href: "/properties", label: "Find a property" }} />
       ) : (
         <>
@@ -34,7 +34,7 @@ export default async function MyEnquiriesPage({ searchParams }: PageProps<"/dash
                       ? <Link href={`/property/${e.property.slug}`} className="font-semibold hover:underline">{e.property.title}</Link>
                       : <span className="font-semibold text-muted-foreground">Listing no longer available</span>}
                     <ToneBadge tone={e.status === "new" ? "info" : e.status === "read" ? "success" : "draft"}>
-                      {e.status === "new" ? "Sent" : e.status === "read" ? "Seen by seller" : ENQUIRY_STATUS_LABELS[e.status]}
+                      {e.status === "new" ? "Sent" : e.status === "read" ? "Our team is on it" : ENQUIRY_STATUS_LABELS[e.status]}
                     </ToneBadge>
                   </div>
                   {e.message && <p className="text-sm text-muted-foreground">“{e.message}”</p>}

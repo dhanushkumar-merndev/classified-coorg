@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Calendar, Check, Droplets, MapPin, Route, ShieldCheck, UserRound, X, Zap } from "lucide-react";
+import { Calendar, Check, Droplets, IndianRupee, LandPlot, MapPin, Route, Ruler, ShieldCheck, Tag, UserRound, X, Zap } from "lucide-react";
 import { VerifiedBadge } from "@/components/property/badges";
 import { ContactOwner } from "@/components/property/contact-owner";
 import { Gallery } from "@/components/property/gallery";
@@ -10,16 +10,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
 import { formatArea, formatDate, formatPriceFull, formatPricePerUnit, formatPriceShort } from "@/lib/format";
 import {
   FEATURE_LABELS, LISTING_TYPE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, VERIFIED_DISCLAIMER,
 } from "@/lib/labels";
 import { breadcrumbLd, jsonLd, truncate } from "@/lib/seo";
-import { SITE_NAME, mediaUrl, propertyPath, siteUrl } from "@/lib/site";
-import {
-  getListingBySlug, getListingSeller, getSimilarListings, type ListingDetail,
-} from "@/repositories/public-listings";
+import { mediaUrl, propertyPath, siteUrl } from "@/lib/site";
+import { getListingBySlug, getSimilarListings, type ListingDetail } from "@/repositories/public-listings";
 
 export const revalidate = 300;
 
@@ -61,10 +58,7 @@ export async function generateMetadata({ params }: PageProps<"/property/[slug]">
 
 export default async function PropertyPage({ params }: PageProps<"/property/[slug]">) {
   const listing = await load((await params).slug);
-  const [seller, similar] = await Promise.all([
-    getListingSeller(listing.id),
-    getSimilarListings(listing.id, listing.location?.id ?? null, listing.property_type),
-  ]);
+  const similar = await getSimilarListings(listing.id, listing.location?.id ?? null, listing.property_type);
   const perUnit = formatPricePerUnit(listing.price_per_unit, listing.area_unit);
   const images = listing.media.map((m, i) => ({ id: m.id, alt: m.alt_text ?? `${listing.title} — photo ${i + 1}` }));
   const locationName = listing.location?.name ?? "Coorg";
@@ -90,13 +84,14 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
     },
   ];
 
-  const facts: Array<{ label: string; value: string }> = [
-    { label: "Property type", value: PROPERTY_TYPE_LABELS[listing.property_type] ?? "Property" },
-    { label: "Area", value: formatArea(listing.area_value, listing.area_unit) },
-    ...(perUnit ? [{ label: "Price per unit", value: perUnit }] : []),
-    { label: "Listing", value: LISTING_TYPE_LABELS[listing.listing_type] ?? "For sale" },
-    { label: "Posted by", value: SELLER_TYPE_LABELS[listing.seller_type] ?? "Seller" },
-    { label: "Price", value: `${formatPriceFull(listing.price)}${listing.negotiable ? " (negotiable)" : ""}` },
+  // Broker model: the public sees the town, never the seller's name, contact
+  // details or exact address. Buyers enquire through Land in Coorg.
+  const facts = [
+    { icon: Ruler, label: "Area", value: formatArea(listing.area_value, listing.area_unit) },
+    ...(perUnit ? [{ icon: IndianRupee, label: "Price per unit", value: perUnit }] : []),
+    { icon: LandPlot, label: "Property type", value: PROPERTY_TYPE_LABELS[listing.property_type] ?? "Property" },
+    { icon: Tag, label: "Listing", value: LISTING_TYPE_LABELS[listing.listing_type] ?? "For sale" },
+    { icon: UserRound, label: "Listed by", value: SELLER_TYPE_LABELS[listing.seller_type] ?? "Seller" },
   ];
 
   const amenities = [
@@ -106,9 +101,9 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   ];
 
   return (
-    <article className="wrap pb-28 pt-8 lg:pb-20">
+    <article className="wrap pb-28 pt-6 lg:pb-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(structured)} />
-      <Breadcrumb className="mb-4">
+      <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -124,57 +119,65 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
         </BreadcrumbList>
       </Breadcrumb>
 
-      <Gallery images={images} title={listing.title} />
+      <header className="mt-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-10">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <VerifiedBadge />
+            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {PROPERTY_TYPE_LABELS[listing.property_type]}
+            </span>
+          </div>
+          <h1 className="font-display text-2xl leading-tight text-balance md:text-3xl">{listing.title}</h1>
+          <p className="flex items-center gap-1.5 text-muted-foreground">
+            <MapPin className="size-4 shrink-0" aria-hidden="true" /> {locationName}, Coorg
+          </p>
+        </div>
+        <div className="shrink-0 md:text-right">
+          <p className="text-3xl font-semibold tracking-tight">{formatPriceShort(listing.price)}</p>
+          <p className="text-sm text-muted-foreground">
+            {[perUnit, listing.negotiable ? "Negotiable" : null].filter(Boolean).join(" · ") || formatPriceFull(listing.price)}
+          </p>
+        </div>
+      </header>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_22rem]">
-        <div className="min-w-0 space-y-8">
-          <header className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <VerifiedBadge />
-              <span className="text-sm text-muted-foreground">{PROPERTY_TYPE_LABELS[listing.property_type]}</span>
-            </div>
-            <h1 className="font-display text-3xl leading-[1.1] text-balance md:text-[2.75rem]">{listing.title}</h1>
-            <p className="flex items-center gap-1.5 text-muted-foreground">
-              <MapPin className="size-4" aria-hidden="true" /> {listing.address_text ? `${listing.address_text}, ` : ""}{locationName}, Coorg
-            </p>
-            <p className="text-3xl font-semibold tracking-tight lg:hidden">{formatPriceShort(listing.price)}</p>
-          </header>
+      <div className="mt-6"><Gallery images={images} title={listing.title} /></div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-y py-6 sm:grid-cols-3">
+      <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="min-w-0 space-y-10">
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {facts.map((f) => (
-              <div key={f.label}>
-                <dt className="text-xs uppercase tracking-[0.08em] text-muted-foreground">{f.label}</dt>
-                <dd className="mt-1.5 text-lg font-medium">{f.value}</dd>
+              <div key={f.label} className="flex flex-col gap-1 rounded-md border bg-card p-4">
+                <dt className="flex flex-col gap-2 text-xs text-muted-foreground">
+                  <f.icon className="size-4 text-primary" aria-hidden="true" /> {f.label}
+                </dt>
+                <dd className="font-semibold leading-snug">{f.value}</dd>
               </div>
             ))}
           </dl>
 
           {listing.description && (
-            <section aria-labelledby="about-heading" className="space-y-3">
-              <h2 id="about-heading" className="text-xl font-medium tracking-tight">About this property</h2>
-              <p className="whitespace-pre-line leading-relaxed text-foreground/90">{listing.description}</p>
-            </section>
+            <Section id="about" title="About this property">
+              <p className="whitespace-pre-line leading-7 text-foreground/90">{listing.description}</p>
+            </Section>
           )}
 
-          <section aria-labelledby="details-heading" className="space-y-3">
-            <h2 id="details-heading" className="text-xl font-medium tracking-tight">Property details</h2>
+          <Section id="amenities" title="Amenities">
             <ul className="grid gap-3 sm:grid-cols-3">
               {amenities.map((a) => (
-                <li key={a.label} className="flex items-center gap-2 rounded-lg border bg-card p-3 text-sm">
-                  <a.icon className="size-4 text-primary" aria-hidden="true" />
-                  <span className="flex-1">{a.label}</span>
+                <li key={a.label} className="flex items-center gap-3 rounded-md border bg-card p-3.5 text-sm">
+                  <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary"><a.icon className="size-4" aria-hidden="true" /></span>
+                  <span className="flex-1 font-medium">{a.label}</span>
                   {a.value === true ? <Check className="size-4 text-success" aria-label="Yes" />
                     : a.value === false ? <X className="size-4 text-muted-foreground" aria-label="No" />
                     : <span className="text-xs text-muted-foreground">Not stated</span>}
                 </li>
               ))}
             </ul>
-          </section>
+          </Section>
 
           {listing.features.length > 0 && (
-            <section aria-labelledby="features-heading" className="space-y-3">
-              <h2 id="features-heading" className="text-xl font-medium tracking-tight">Features</h2>
-              <ul className="grid gap-2 sm:grid-cols-2">
+            <Section id="features" title="Features">
+              <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
                 {listing.features.map((f) => (
                   <li key={f.feature_key} className="flex items-start gap-2 text-sm">
                     <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
@@ -185,28 +188,23 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                   </li>
                 ))}
               </ul>
-            </section>
+            </Section>
           )}
 
-          <section aria-labelledby="location-heading" className="space-y-3">
-            <h2 id="location-heading" className="text-xl font-medium tracking-tight">Location</h2>
-            <p className="text-muted-foreground">
-              {listing.address_text ? `${listing.address_text}, ` : ""}{locationName}, Kodagu district, Karnataka.
-              {listing.location && <> <Link href={`/locations/${listing.location.slug}`} className="text-primary hover:underline">More properties in {listing.location.name}</Link></>}
-            </p>
-          </section>
-
-          {seller && (
-            <section aria-labelledby="seller-heading" className="flex items-center gap-4 rounded-xl border bg-card p-5">
-              <div className="flex size-12 items-center justify-center rounded-full bg-accent text-primary"><UserRound aria-hidden="true" /></div>
-              <div>
-                <h2 id="seller-heading" className="font-semibold">{seller.display_name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {SELLER_TYPE_LABELS[seller.seller_type] ?? "Seller"} · on {SITE_NAME} since {seller.member_since}
-                </p>
-              </div>
-            </section>
-          )}
+          <Section id="location" title="Location">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-4">
+              <p className="flex items-center gap-2 text-sm">
+                <MapPin className="size-4 text-primary" aria-hidden="true" />
+                {locationName}, Kodagu district, Karnataka
+              </p>
+              {listing.location && (
+                <Link href={`/locations/${listing.location.slug}`} className="text-sm font-medium text-primary hover:underline">
+                  More in {listing.location.name}
+                </Link>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">The exact address is shared by our team when you arrange a site visit.</p>
+          </Section>
 
           <Alert>
             <ShieldCheck />
@@ -221,18 +219,26 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
           </p>
         </div>
 
-        <aside aria-label="Contact">
+        <aside aria-label="Enquire" className="lg:sticky lg:top-20">
           <ContactOwner propertyId={listing.id} title={listing.title} priceLabel={formatPriceShort(listing.price)} />
         </aside>
       </div>
 
       {similar.length > 0 && (
-        <section aria-labelledby="similar-heading" className="mt-16 space-y-6">
-          <Separator />
-          <h2 id="similar-heading" className="font-display text-3xl">Similar properties</h2>
+        <section aria-labelledby="similar-heading" className="mt-16 space-y-5">
+          <h2 id="similar-heading" className="font-display text-2xl">Similar properties</h2>
           <PropertyGrid listings={similar} />
         </section>
       )}
     </article>
+  );
+}
+
+function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={`${id}-heading`} className="space-y-4">
+      <h2 id={`${id}-heading`} className="text-lg font-semibold">{title}</h2>
+      {children}
+    </section>
   );
 }

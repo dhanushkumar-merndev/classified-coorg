@@ -32,7 +32,7 @@ export default async function MyPropertiesPage({ searchParams }: PageProps<"/das
               const counts = enquiryCounts[row.id];
               return (
                 <li key={row.id}>
-                  <Link href={`/dashboard/properties/${row.id}`} className="group block overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
+                  <Link href={`/dashboard/properties/${row.id}`} className="group block overflow-hidden rounded-md border bg-card transition-shadow hover:shadow-md">
                     <div className="relative aspect-[4/3] bg-muted">
                       <PropertyImage src={row.cover?.[0] ? mediaUrl(row.cover[0].id, "thumb") : null} alt={row.title ?? "Untitled listing"} />
                       <StatusBadge status={row.status} className="absolute left-2 top-2 bg-card" />
@@ -42,8 +42,8 @@ export default async function MyPropertiesPage({ searchParams }: PageProps<"/das
                       <p className="text-sm text-muted-foreground">{formatPriceShort(row.price)} · {formatArea(row.area_value, row.area_unit)}</p>
                       <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
                         <span>Updated {formatDate(row.updated_at)}</span>
-                        {counts && counts.unread > 0 && (
-                          <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">{counts.unread} new enquir{counts.unread === 1 ? "y" : "ies"}</span>
+                        {counts && counts.total > 0 && (
+                          <span className="rounded-md bg-accent px-2 py-0.5 font-medium text-primary">{counts.total} interested buyer{counts.total === 1 ? "" : "s"}</span>
                         )}
                       </div>
                     </div>

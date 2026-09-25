@@ -23,12 +23,12 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     <>
       <PageHeader title="Users" description={`${list.total} matching`} />
       <form className="mb-4 flex gap-2" role="search">
-        <input name="q" defaultValue={q} placeholder="Name or phone" aria-label="Search users" className="h-11 rounded-lg border bg-card px-3 text-sm" />
-        <button className="h-11 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">Search</button>
+        <input name="q" defaultValue={q} placeholder="Name or phone" aria-label="Search users" className="h-11 rounded-md border bg-card px-3 text-sm" />
+        <button className="h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">Search</button>
       </form>
       {list.items.length === 0 ? <EmptyState icon={Users} title="No users found" description="Try a different search." /> : (
         <>
-          <div className="rounded-xl border bg-card">
+          <div className="rounded-md border bg-card">
             <Table>
               <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead>Roles</TableHead><TableHead>Status</TableHead><TableHead>Joined</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>

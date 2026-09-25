@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       <aside className="bg-secondary p-4 text-white lg:w-64 lg:shrink-0">
         <div className="lg:sticky lg:top-6 space-y-6">
           <Logo inverted />
-          <AdminNav />
+          <AdminNav isSuper={actor.roles.has("super_admin")} />
           <p className="hidden text-xs text-white/60 lg:block">
             Signed in as {actor.fullName ?? "admin"}<br />
             <Link href="/dashboard" className="underline">Back to my account</Link>

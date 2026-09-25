@@ -2,6 +2,7 @@ import "server-only";
 import sharp from "sharp";
 import { AppError } from "@/lib/errors";
 import { DOCUMENT_LIMITS, IMAGE_LIMITS } from "@/lib/config/uploads";
+import { photoSizeProblem } from "@/lib/media/photo-rules";
 
 // Re-encodes validated bytes into new images (MEDIA-001/007). Decoding and
 // re-encoding strips EXIF/GPS and any trailing payload; orientation is
@@ -38,7 +39,7 @@ async function inspect(bytes: Buffer) {
 
 export async function processListingImage(bytes: Buffer): Promise<ProcessedListingImage> {
   const { width, height } = await inspect(bytes);
-  if (width < IMAGE_LIMITS.minWidth || height < IMAGE_LIMITS.minHeight) {
+  if (photoSizeProblem(width, height)) {
     throw new AppError("UPLOAD_REJECTED", { detail: "image_too_small" });
   }
   try {

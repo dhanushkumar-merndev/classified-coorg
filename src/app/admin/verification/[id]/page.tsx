@@ -41,7 +41,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/verificat
               </dl>
               <p className="whitespace-pre-wrap text-sm">{p.description}</p>
               {features.length > 0 && <ul className="flex flex-wrap gap-2 text-xs">
-                {features.map((f) => <li key={f.feature_key} className="rounded-full border px-2.5 py-1">{FEATURE_LABELS[f.feature_key] ?? f.feature_key}{f.feature_value && f.feature_value !== "true" ? `: ${f.feature_value}` : ""}</li>)}
+                {features.map((f) => <li key={f.feature_key} className="rounded-md border px-2.5 py-1">{FEATURE_LABELS[f.feature_key] ?? f.feature_key}{f.feature_value && f.feature_value !== "true" ? `: ${f.feature_value}` : ""}</li>)}
               </ul>}
             </CardContent>
           </Card>
@@ -51,7 +51,7 @@ export default async function ReviewPage({ params }: PageProps<"/admin/verificat
               {media.map((m) => (
                 <a key={m.id} href={`/api/media/preview/${m.id}/full`} target="_blank" rel="noreferrer">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/api/media/preview/${m.id}/thumb`} alt={m.alt_text ?? "Listing photo"} className="aspect-[4/3] w-full rounded-lg border object-cover" />
+                  <img src={`/api/media/preview/${m.id}/thumb`} alt={m.alt_text ?? "Listing photo"} className="aspect-[4/3] w-full rounded-md border object-cover" />
                 </a>
               ))}
               {media.length === 0 && <p className="text-sm text-muted-foreground">No photos.</p>}

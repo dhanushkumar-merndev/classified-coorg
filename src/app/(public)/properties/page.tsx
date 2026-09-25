@@ -39,20 +39,20 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
   const heading = `${filters.type ? PROPERTY_TYPE_LABELS[filters.type] : "Properties"} in ${loc?.name ?? "Coorg"}`;
 
   return (
-    <div className="wrap py-10">
-      <Breadcrumb className="mb-6">
+    <div className="wrap py-8">
+      <Breadcrumb className="mb-5">
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem><BreadcrumbPage>Properties</BreadcrumbPage></BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="flex gap-10">
+      <div className="flex gap-8">
         <DesktopFilters filters={filters} locations={towns} />
         <section className="min-w-0 flex-1" aria-labelledby="results-heading">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b pb-6">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 id="results-heading" className="font-display text-3xl leading-tight md:text-4xl">{heading}</h1>
+              <h1 id="results-heading" className="font-display text-2xl leading-tight md:text-3xl">{heading}</h1>
               <p className="mt-1 text-sm text-muted-foreground" aria-live="polite">
                 {formatCount(result.total)} verified {result.total === 1 ? "listing" : "listings"}
               </p>

@@ -36,7 +36,7 @@ export default async function AdminDashboardPage() {
         <TrendChart title="Live listings by type" kind="bar"
           points={summary.by_type.map((t) => ({ label: PROPERTY_TYPE_LABELS[t.type] ?? t.type, value: t.count }))} />
         <TrendChart title="Live listings by location" kind="bar" points={summary.by_location.map((l) => ({ label: l.name, value: l.count }))} />
-        <div className="rounded-lg border bg-card p-5">
+        <div className="rounded-md border bg-card p-5">
           <p className="mb-3 text-sm font-medium">Verification funnel (90 days)</p>
           <dl className="space-y-2 text-sm">
             {[["Submitted", f.submitted], ["Review started", f.reviewed], ["Approved", f.approved], ["Listings enquired on", f.enquired]].map(([l, v]) => (

@@ -144,12 +144,16 @@ export class TestDb {
        returning id`,
       ["A well maintained arabica coffee estate with water and road access close to town.", locationId],
     );
-    await this.finalizeUpload(ownerId, id, "property_image");
+    // Photo rules: at least 4 photos, one portrait and one landscape.
+    for (const [w, h] of [[800, 600], [800, 600], [800, 600], [600, 800]] as const) {
+      await this.finalizeUpload(ownerId, id, "property_image", { width: w, height: h });
+    }
     await this.finalizeUpload(ownerId, id, "property_document");
     return id;
   }
 
-  async finalizeUpload(ownerId: string, propertyId: string, kind: "property_image" | "property_document"): Promise<string> {
+  async finalizeUpload(ownerId: string, propertyId: string, kind: "property_image" | "property_document",
+    dims: { width: number; height: number } = { width: 800, height: 600 }): Promise<string> {
     const [created] = await this.rows<{ r: { session_id: string } }>(
       service,
       `select public.upload_session_create($1, $2, $3, $4, 1000, $5, 'file', 'bucket', 20, 600) as r`,
@@ -165,9 +169,9 @@ export class TestDb {
     const checksum = "a".repeat(64);
     if (kind === "property_image") {
       await this.rows(service,
-        `select public.upload_session_finalize_media($1, $2, $3, $4, 'media', $5, $6, $7, 800, 600, 1000, 20)`,
+        `select public.upload_session_finalize_media($1, $2, $3, $4, 'media', $5, $6, $7, $8, $9, 1000, 20)`,
         [created.r.session_id, ownerId, claimed.r.lease_token, id,
-          `properties/${propertyId}/${id}/full.webp`, `properties/${propertyId}/${id}/thumb.webp`, checksum]);
+          `properties/${propertyId}/${id}/full.webp`, `properties/${propertyId}/${id}/thumb.webp`, checksum, dims.width, dims.height]);
     } else {
       await this.rows(service,
         `select public.upload_session_finalize_document($1, $2, $3, $4, 'documents', $5, $6, 'application/pdf', 1000, 10)`,

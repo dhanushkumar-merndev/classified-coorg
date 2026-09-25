@@ -197,9 +197,6 @@ export interface ListingDetail {
   area_value: number;
   area_unit: string;
   price_per_unit: number | null;
-  address_text: string | null;
-  latitude: number | null;
-  longitude: number | null;
   road_access: boolean | null;
   water_available: boolean | null;
   electricity_available: boolean | null;
@@ -213,7 +210,7 @@ export interface ListingDetail {
 
 const DETAIL_COLUMNS = `
   id, slug, title, description, property_type, listing_type, seller_type, price, negotiable,
-  area_value, area_unit, price_per_unit, address_text, latitude, longitude, road_access,
+  area_value, area_unit, price_per_unit, road_access,
   water_available, electricity_available, featured, published_at, updated_at,
   location:locations(id, name, slug, parent_id),
   media:property_media(id, alt_text, sort_order, is_cover, width, height),
@@ -265,16 +262,6 @@ export const getSimilarListings = unstable_cache(
     return ((data ?? []) as unknown as RawCard[]).map(toCard);
   },
   ["public-similar"],
-  { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
-);
-
-export const getListingSeller = unstable_cache(
-  async (listingId: string): Promise<{ display_name: string; seller_type: string; member_since: string } | null> => {
-    const { data, error } = await createPublicClient().rpc("get_listing_seller", { p_property_id: listingId });
-    if (error) throw error;
-    return (data as { display_name: string; seller_type: string; member_since: string } | null) ?? null;
-  },
-  ["public-listing-seller"],
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
 );
 

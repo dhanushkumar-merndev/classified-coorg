@@ -56,7 +56,7 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
         { name: "Locations", url: siteUrl("/locations") },
         { name: location.name, url: siteUrl(`/locations/${location.slug}`) },
       ]))} />
-      <Breadcrumb className="mb-8">
+      <Breadcrumb className="mb-6">
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -66,12 +66,12 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
         </BreadcrumbList>
       </Breadcrumb>
 
-      <PageIntro eyebrow="Kodagu district" title={`Property for sale in ${location.name}`}
-        lede={<span className="whitespace-pre-line">{location.intro ?? `Verified listings in ${location.name}, Kodagu district.`}</span>} />
+      <PageIntro title={`Property for sale in ${location.name}`}
+        lede={<span className="line-clamp-3 whitespace-pre-line">{location.intro ?? `Verified listings in ${location.name}, Kodagu district.`}</span>} />
 
-      <section aria-labelledby="loc-results" className="mt-10 space-y-8">
+      <section aria-labelledby="loc-results" className="mt-8 space-y-5">
         <div className="flex items-end justify-between">
-          <h2 id="loc-results" className="text-xl font-medium">{results.total} verified {results.total === 1 ? "listing" : "listings"}</h2>
+          <h2 id="loc-results" className="text-sm font-medium text-muted-foreground">{results.total} verified {results.total === 1 ? "listing" : "listings"}</h2>
           {results.total > 0 && <Link href={`/properties?location=${location.slug}`} className="text-sm font-medium text-primary hover:underline">Filter these results</Link>}
         </div>
         {results.items.length > 0 ? (
@@ -87,12 +87,12 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       </section>
 
       {(nearby.length > 0 || children.length > 0) && (
-        <section aria-labelledby="nearby" className="mt-20 space-y-5 border-t pt-10">
-          <h2 id="nearby" className="text-2xl font-medium tracking-tight">{children.length ? "Areas within " + location.name : "Nearby locations"}</h2>
+        <section aria-labelledby="nearby" className="mt-16 space-y-4">
+          <h2 id="nearby" className="font-display text-xl">{children.length ? "Areas within " + location.name : "Nearby locations"}</h2>
           <ul className="flex flex-wrap gap-2">
             {(children.length ? children : nearby).map((l) => (
               <li key={l.id}>
-                <Link href={`/locations/${l.slug}`} className="inline-flex items-center gap-2 rounded-md border bg-card px-4 py-2.5 text-sm hover:border-primary hover:text-primary">
+                <Link href={`/locations/${l.slug}`} className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm transition-colors hover:border-primary hover:text-primary">
                   {l.name} <span className="text-muted-foreground">{counts[l.id] ?? 0}</span>
                 </Link>
               </li>
@@ -102,10 +102,14 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       )}
 
       {guides.length > 0 && (
-        <section aria-labelledby="loc-guides" className="mt-16 space-y-4 border-t pt-10">
-          <h2 id="loc-guides" className="text-2xl font-medium tracking-tight">Buying guides</h2>
-          <ul className="space-y-2">
-            {guides.map((g) => <li key={g.id}><Link href={`/guides/${g.slug}`} className="text-primary hover:underline">{g.title}</Link></li>)}
+        <section aria-labelledby="loc-guides" className="mt-12 space-y-4">
+          <h2 id="loc-guides" className="font-display text-xl">Buying guides</h2>
+          <ul className="grid gap-3 md:grid-cols-3">
+            {guides.map((g) => (
+              <li key={g.id}>
+                <Link href={`/guides/${g.slug}`} className="block h-full rounded-md border bg-card p-4 text-sm font-medium transition-colors hover:border-primary hover:text-primary">{g.title}</Link>
+              </li>
+            ))}
           </ul>
         </section>
       )}

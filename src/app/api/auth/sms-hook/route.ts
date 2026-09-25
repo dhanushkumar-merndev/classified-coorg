@@ -1,4 +1,4 @@
-import { appEnv, smsEnv } from "@/lib/env";
+import { appEnv, hookEnv, smsEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -20,17 +20,24 @@ export async function POST(request: Request): Promise<Response> {
 
   let result;
   try {
-    const sms = smsEnv();
+    // Only the hook secret is needed to authenticate the call; MSG91 settings
+    // are read at send time, so unsigned requests get 401 even before MSG91 is configured.
+    const hook = hookEnv();
     const service = createServiceClient();
     result = await handleSendSmsHook(rawBody, Object.fromEntries(request.headers), {
-      hookSecret: sms.SEND_SMS_HOOK_SECRET,
+      hookSecret: hook.SEND_SMS_HOOK_SECRET,
       appEnv: appEnv().APP_ENV,
-      allowlist: sms.allowlist,
-      sms: new Msg91SmsProvider({
-        authKey: sms.MSG91_AUTH_KEY,
-        templateId: sms.MSG91_OTP_TEMPLATE_ID,
-        otpVariable: sms.MSG91_OTP_VARIABLE,
-      }),
+      allowlist: hook.allowlist,
+      sms: {
+        sendOtp: (phone, otp) => {
+          const sms = smsEnv();
+          return new Msg91SmsProvider({
+            authKey: sms.MSG91_AUTH_KEY,
+            templateId: sms.MSG91_OTP_TEMPLATE_ID,
+            otpVariable: sms.MSG91_OTP_VARIABLE,
+          }).sendOtp(phone, otp);
+        },
+      },
       registerReceipt: async (id) => {
         const { data, error } = await service.rpc("register_webhook_receipt", { p_source: SOURCE, p_id: id });
         if (error) throw error;

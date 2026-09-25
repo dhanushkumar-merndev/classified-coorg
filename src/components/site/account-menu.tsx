@@ -23,10 +23,10 @@ export function AccountMenu() {
   const { status, account } = useAccount();
   const pathname = usePathname();
 
-  if (status === "loading") return <Skeleton className="size-10 rounded-full" aria-label="Loading account" />;
+  if (status === "loading") return <Skeleton className="size-10 rounded-md" role="status" aria-label="Loading account" />;
   if (status === "anonymous" || !account) {
     return (
-      <Button asChild variant="outline">
+      <Button asChild variant="ghost">
         <Link href={`/login?next=${encodeURIComponent(pathname)}`}>Log in</Link>
       </Button>
     );
@@ -38,9 +38,9 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
-          <Avatar className="size-9">
-            <AvatarFallback className="bg-accent text-sm font-medium text-primary">{initials(account.name)}</AvatarFallback>
+        <Button variant="ghost" size="icon" aria-label="Account menu">
+          <Avatar className="size-8 rounded-md after:rounded-md">
+            <AvatarFallback className="rounded-md bg-accent text-xs font-semibold text-primary">{initials(account.name)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

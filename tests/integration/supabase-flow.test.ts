@@ -26,7 +26,9 @@ if (existsSync(".env")) process.loadEnvFile(".env");
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishable = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 const secret = process.env.SUPABASE_SECRET_KEY;
-const roleEnv = { seller: "SELLER", admin: "ADMIN", buyer: "BUYER" } as const;
+// E2E_LISTER=agent lists with the staging agent account (also a listing role)
+// when the staging seller has used today's draft allowance.
+const roleEnv = { seller: process.env.E2E_LISTER === "agent" ? "AGENT" : "SELLER", admin: "ADMIN", buyer: "BUYER" } as const;
 const configured = Boolean(
   url && publishable && secret && process.env.TIGRIS_STORAGE_ACCESS_KEY_ID
   && Object.values(roleEnv).every((key) => process.env[`E2E_${key}_PHONE`] && process.env[`E2E_${key}_OTP`]),
@@ -118,6 +120,20 @@ describe.skipIf(!configured)("staging Supabase + Tigris listing flow (live)", ()
     expect(media.replayed).toBe(false);
     expect(await finalizeUpload(actor, image.sessionId)).toEqual({ ...media, replayed: true });
 
+    // Too small for the photo rules: refused after upload, never stored.
+    const tiny = await sharp({ create: { width: 600, height: 400, channels: 3, background: "#777777" } }).jpeg().toBuffer();
+    const small = await initiateUpload(actor, { kind: "property_image", propertyId, fileName: "tiny.jpg", contentType: "image/jpeg", size: tiny.length });
+    await fetch(small.upload.url, { method: "PUT", headers: small.upload.headers, body: tiny });
+    await expect(finalizeUpload(actor, small.sessionId)).rejects.toMatchObject({ code: "UPLOAD_REJECTED" });
+
+    // Photo rules for submission: 4+ photos with one portrait and one landscape.
+    for (const [width, height] of [[1600, 900], [1200, 900], [800, 1200]]) {
+      const bytes = await sharp({ create: { width, height, channels: 3, background: "#4d7a52" } }).jpeg().toBuffer();
+      const session = await initiateUpload(actor, { kind: "property_image", propertyId, fileName: `p${width}.jpg`, contentType: "image/jpeg", size: bytes.length });
+      expect((await fetch(session.upload.url, { method: "PUT", headers: session.upload.headers, body: bytes })).status).toBe(200);
+      await finalizeUpload(actor, session.sessionId);
+    }
+
     const pdf = Buffer.from("%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n");
     const doc = await initiateUpload(actor, {
       kind: "property_document", propertyId, documentType: "rtc", fileName: "rtc.pdf", contentType: "application/pdf", size: pdf.length,
@@ -161,13 +177,16 @@ describe.skipIf(!configured)("staging Supabase + Tigris listing flow (live)", ()
     const { data: visible } = await anon.from("properties").select("id, status, verification_status").eq("id", propertyId);
     expect(visible).toEqual([{ id: propertyId, status: "verified", verification_status: "verified" }]);
     const { data: media } = await anon.from("property_media").select("id").eq("property_id", propertyId);
-    expect(media).toHaveLength(1);
+    expect(media).toHaveLength(4);
+    // Broker model: the public API never returns the owner or exact location.
+    const { error: ownerLeak } = await anon.from("properties").select("owner_id").eq("id", propertyId);
+    expect(ownerLeak?.code).toBe("42501");
 
     const locked = await users.seller.client.from("properties").update({ price: "1" }).eq("id", propertyId).select("id");
     expect(locked.data).toEqual([]);
   });
 
-  test("enquiry: idempotent for the buyer, no self-contact, visible to both parties only", async () => {
+  test("enquiry: idempotent for the buyer, no self-contact, visible to the buyer and platform only", async () => {
     const key = randomUUID();
     const first = await users.buyer.client.rpc("create_enquiry", { p_property_id: propertyId, p_message: "Is the road motorable?", p_idempotency_key: key });
     const again = await users.buyer.client.rpc("create_enquiry", { p_property_id: propertyId, p_message: "Is the road motorable?", p_idempotency_key: key });
@@ -178,9 +197,14 @@ describe.skipIf(!configured)("staging Supabase + Tigris listing flow (live)", ()
     expect(self.error?.message).toBe("SELF_ENQUIRY_FORBIDDEN");
 
     const { data: sellerView } = await users.seller.client.from("enquiries").select("buyer_id").eq("property_id", propertyId);
-    expect(sellerView).toEqual([{ buyer_id: users.buyer.id }]);
-    const { data: seller } = await anon.rpc("get_listing_seller", { p_property_id: propertyId });
-    expect(Object.keys(seller).sort()).toEqual(["display_name", "member_since", "seller_type"]);
+    expect(sellerView).toEqual([]);
+    const { data: adminView } = await users.admin.client.from("enquiries").select("buyer_id").eq("property_id", propertyId);
+    expect(adminView).toEqual([{ buyer_id: users.buyer.id }]);
+    const { data: counts } = await users.seller.client.rpc("seller_enquiry_counts");
+    expect((counts as Array<{ property_id: string }>).find((c) => c.property_id === propertyId))
+      .toEqual({ property_id: propertyId, total: 1, unread: 1 });
+    const { error: nameLeak } = await anon.rpc("get_listing_seller", { p_property_id: propertyId });
+    expect(nameLeak?.code).toBe("42501");
   });
 
   test("suspension hides the listing immediately for existing sessions", async () => {

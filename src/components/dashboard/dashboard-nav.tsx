@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Clock, Heart, Inbox, LayoutDashboard, MessageSquare, UserRound } from "lucide-react";
+import { Building2, Clock, Heart, LayoutDashboard, MessageSquare, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, seller: false, exact: true },
   { href: "/dashboard/properties", label: "My properties", icon: Building2, seller: true },
-  { href: "/dashboard/received", label: "Received enquiries", icon: Inbox, seller: true },
   { href: "/dashboard/saved", label: "Saved properties", icon: Heart, seller: false },
   { href: "/dashboard/enquiries", label: "My enquiries", icon: MessageSquare, seller: false },
   { href: "/dashboard/recent", label: "Recently viewed", icon: Clock, seller: false },
@@ -27,7 +26,7 @@ export function DashboardNav({ isSeller }: { isSeller: boolean }) {
         {items.map((item) => (
           <li key={item.href} className="shrink-0">
             <Link href={item.href} aria-current={active(item.href, item.exact) ? "page" : undefined}
-              className={cn("inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-2 text-sm",
+              className={cn("inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-2 text-sm",
                 active(item.href, item.exact) && "border-primary bg-accent text-primary")}>
               <item.icon className="size-4" aria-hidden="true" /> {item.label}
             </Link>
@@ -39,7 +38,7 @@ export function DashboardNav({ isSeller }: { isSeller: boolean }) {
         {items.map((item) => (
           <li key={item.href}>
             <Link href={item.href} aria-current={active(item.href, item.exact) ? "page" : undefined}
-              className={cn("flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+              className={cn("flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
                 active(item.href, item.exact) && "bg-accent text-primary")}>
               <item.icon className="size-4" aria-hidden="true" /> {item.label}
             </Link>

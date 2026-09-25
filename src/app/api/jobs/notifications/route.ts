@@ -17,7 +17,7 @@ const COPY: Record<string, { title: string; body: string }> = {
   listing_approved: { title: "Your listing is live", body: "It has been verified and published." },
   listing_rejected: { title: "Listing not approved", body: "Open the listing to see the reviewer's message." },
   changes_requested: { title: "Changes requested", body: "Update your listing and resubmit." },
-  new_enquiry: { title: "New enquiry", body: "A buyer contacted you about your listing." },
+  new_enquiry: { title: "New buyer enquiry", body: "A buyer asked about a listing. Open Admin → Enquiries to call them back." },
   listing_expiry: { title: "Listing expiring soon", body: "Renew to keep it visible." },
   security_notice: { title: "Security notice", body: "There was a change to your account." },
 };

@@ -30,6 +30,7 @@ export function SaveButton({ propertyId, title, variant = "icon", className }: {
   function toggle(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    if (status === "loading") return;
     if (status !== "signed-in") {
       router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
@@ -50,7 +51,7 @@ export function SaveButton({ propertyId, title, variant = "icon", className }: {
   const label = saved ? `Remove ${title} from saved` : `Save ${title}`;
   if (variant === "full") {
     return (
-      <Button type="button" variant="outline" onClick={toggle} disabled={pending} aria-pressed={saved} aria-label={label} className={className}>
+      <Button type="button" variant="outline" onClick={toggle} disabled={pending || status === "loading"} aria-pressed={saved} aria-label={label} className={className}>
         <Heart className={cn(saved && "fill-destructive text-destructive")} /> {saved ? "Saved" : "Save"}
       </Button>
     );
@@ -61,10 +62,10 @@ export function SaveButton({ propertyId, title, variant = "icon", className }: {
       size="icon"
       variant="outline"
       onClick={toggle}
-      disabled={pending}
+      disabled={pending || status === "loading"}
       aria-pressed={saved}
       aria-label={label}
-      className={cn("rounded-full bg-card/95 shadow-sm", className)}
+      className={cn("size-9 border-transparent bg-card/95 shadow-sm hover:bg-card", className)}
     >
       <Heart className={cn(saved && "fill-destructive text-destructive")} />
     </Button>

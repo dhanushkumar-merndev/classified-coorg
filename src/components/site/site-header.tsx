@@ -27,22 +27,21 @@ export function SiteHeader() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-card focus:px-3 focus:py-2">
+    <header className="sticky top-0 z-40 border-b bg-background">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2">
         Skip to content
       </a>
-      <div className="wrap flex h-16 items-center gap-4">
+      <div className="wrap flex h-16 items-center gap-2">
         <Logo />
-        <nav aria-label="Main" className="ml-10 hidden items-center gap-7 lg:flex">
+        <nav aria-label="Main" className="ml-8 hidden items-center gap-1 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "relative py-5 text-sm text-muted-foreground transition-colors hover:text-foreground",
-                "after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-primary after:transition-transform",
-                isActive(item.href) && "text-foreground after:scale-x-100",
+                "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                isActive(item.href) && "bg-muted text-foreground",
               )}
             >
               {item.label}
@@ -53,10 +52,10 @@ export function SiteHeader() {
           <Button asChild variant="ghost" size="icon" className="lg:hidden" aria-label="Search properties">
             <Link href="/properties"><Search /></Link>
           </Button>
-          <Button asChild variant="ghost" className="hidden lg:inline-flex">
-            <Link href="/dashboard/saved"><Heart /> Saved</Link>
+          <Button asChild variant="ghost" size="icon" className="hidden lg:inline-flex" aria-label="Saved properties" title="Saved">
+            <Link href="/dashboard/saved"><Heart /></Link>
           </Button>
-          <Button asChild variant="outline" className="hidden border-foreground/80 sm:inline-flex">
+          <Button asChild className="hidden sm:inline-flex">
             <Link href="/dashboard/properties/new"><Plus /> Post a property</Link>
           </Button>
           <AccountMenu />
@@ -68,11 +67,11 @@ export function SiteHeader() {
               <SheetHeader><SheetTitle>Menu</SheetTitle></SheetHeader>
               <nav aria-label="Mobile" className="flex flex-col gap-1 px-4" onClick={() => setOpen(false)}>
                 {NAV.map((item) => (
-                  <Link key={item.href} href={item.href} className="rounded-lg px-3 py-3 text-base font-medium hover:bg-muted">
+                  <Link key={item.href} href={item.href} className="rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted">
                     {item.label}
                   </Link>
                 ))}
-                <Link href="/dashboard/saved" className="rounded-lg px-3 py-3 text-base font-medium hover:bg-muted">Saved</Link>
+                <Link href="/dashboard/saved" className="rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted">Saved</Link>
                 <Separator className="my-2" />
                 <Button asChild size="lg"><Link href="/dashboard/properties/new"><Plus /> Post property</Link></Button>
               </nav>

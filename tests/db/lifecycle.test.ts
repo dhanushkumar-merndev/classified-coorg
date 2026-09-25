@@ -173,8 +173,8 @@ describe("review integrity", () => {
               jsonb_array_length(snapshot->'media') as media, jsonb_array_length(snapshot->'documents') as docs
        from public.property_revisions where property_id = $1 order by revision_no`, [id]);
     expect(revisions).toEqual([
-      { revision_no: 1, price: "25000000.00", media: 1, docs: 1 },
-      { revision_no: 2, price: "24000000.00", media: 1, docs: 1 },
+      { revision_no: 1, price: "25000000.00", media: 4, docs: 1 },
+      { revision_no: 2, price: "24000000.00", media: 4, docs: 1 },
     ]);
     await expect(db.sql("update public.property_revisions set snapshot = '{}' where property_id = $1", [id]))
       .rejects.toThrow("IMMUTABLE_RECORD");
@@ -241,18 +241,52 @@ describe("single public eligibility predicate (GAP-02)", () => {
     const { id, owner } = await listingIn("draft");
     expect(await db.rows(anon, "select id from public.property_media where property_id = $1", [id])).toEqual([]);
     expect(await db.rows(user(owner), "select id from public.property_media where property_id = $1", [id]))
-      .toHaveLength(1);
+      .toHaveLength(4);
     await db.publish(id, owner, admin);
-    expect(await db.rows(anon, "select id from public.property_media where property_id = $1", [id])).toHaveLength(1);
+    expect(await db.rows(anon, "select id from public.property_media where property_id = $1", [id])).toHaveLength(4);
   });
 
-  test("public seller projection exposes no contact details", async () => {
+  test("public reads show the seller type only: no name, contact details or exact location (broker model)", async () => {
     const { id } = await listingIn("verified");
-    const [{ seller }] = await db.rows<{ seller: Record<string, unknown> }>(
-      anon, "select public.get_listing_seller($1) as seller", [id]);
-    expect(Object.keys(seller).sort()).toEqual(["display_name", "member_since", "seller_type"]);
-    const draft = await listingIn("draft");
-    expect(await db.rows(anon, "select public.get_listing_seller($1) as seller", [draft.id]))
-      .toEqual([{ seller: null }]);
+    expect(await db.rows(anon, "select title, seller_type from public.properties where id = $1", [id])).toHaveLength(1);
+    for (const column of ["owner_id", "address_text", "latitude", "longitude"]) {
+      expect(await db.error(anon, `select ${column} from public.properties where id = $1`, [id])).toMatch(/permission denied/);
+    }
+    expect(await db.error(anon, "select public.get_listing_seller($1)", [id])).toMatch(/permission denied/);
+  });
+});
+
+describe("contact details in listing text (broker model)", () => {
+  test("phone numbers and emails in the title or description block submission", async () => {
+    const [{ yes }] = await db.sql<{ yes: boolean[] }>(`select array[
+      app.text_has_contact_details('Call 98765 43210 for a visit'),
+      app.text_has_contact_details('whatsapp +91-98765-43210'),
+      app.text_has_contact_details('ring 09876543210'),
+      app.text_has_contact_details('mail owner@example.com'),
+      app.text_has_contact_details('5 acres at 3,200 ft, price 2.5 Cr, 1200 coffee plants, since 1985')
+    ] as yes`);
+    expect(yes).toEqual([true, true, true, true, false]);
+  });
+});
+
+describe("listing photo rules", () => {
+  test("submission needs 4 photos including a portrait and a landscape", async () => {
+    const owner = await db.createUser({ roles: ["seller"] });
+    const id = await db.createCompleteDraft(owner);
+    const gaps = async () => (await db.sql<{ g: string[] }>(
+      "select app.property_submission_gaps(p) as g from public.properties p where p.id = $1", [id]))[0]!.g;
+    expect(await gaps()).toEqual([]);
+
+    // Remove the only portrait → portrait gap and too few photos.
+    await db.sql("update public.property_media set removed_at = now() where property_id = $1 and height > width", [id]);
+    expect(await gaps()).toEqual(expect.arrayContaining(["photos", "photo_portrait"]));
+    expect(await gaps()).not.toContain("photo_landscape");
+
+    // Four square photos: enough photos, but neither orientation.
+    const squareOnly = await db.createCompleteDraft(owner);
+    await db.sql("update public.property_media set width = 1000, height = 1000 where property_id = $1", [squareOnly]);
+    const [{ g }] = await db.sql<{ g: string[] }>("select app.property_submission_gaps(p) as g from public.properties p where p.id = $1", [squareOnly]);
+    expect(g).toEqual(expect.arrayContaining(["photo_portrait", "photo_landscape"]));
+    expect(g).not.toContain("photos");
   });
 });

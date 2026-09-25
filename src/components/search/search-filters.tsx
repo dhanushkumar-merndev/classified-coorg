@@ -8,9 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AREA_UNIT_LABELS } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS } from "@/lib/labels";
@@ -36,7 +34,7 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
   const num = (v: string) => (v.trim() === "" || !/^\d+$/.test(v.trim()) ? undefined : Number(v.trim()));
   const id = (name: string) => `${idPrefix}-${name}`;
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor={id("q")}>Keyword</Label>
         <Input id={id("q")} type="search" placeholder="e.g. estate with stream" defaultValue={value.q ?? ""}
@@ -86,17 +84,16 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
           </SelectContent>
         </Select>
       </fieldset>
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium">Seller type</legend>
-        <RadioGroup value={value.seller ?? ANY} onValueChange={(v) => onChange({ seller: v === ANY ? undefined : (v as SearchFilters["seller"]) })}>
-          {[[ANY, "Any"], ...Object.entries(SELLER_TYPE_LABELS)].map(([v, l]) => (
-            <div key={v} className="flex items-center gap-2">
-              <RadioGroupItem id={id(`seller-${v}`)} value={v} />
-              <Label htmlFor={id(`seller-${v}`)} className="font-normal">{l}</Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </fieldset>
+      <div className="space-y-2">
+        <Label htmlFor={id("seller")}>Seller type</Label>
+        <Select value={value.seller ?? ANY} onValueChange={(v) => onChange({ seller: v === ANY ? undefined : (v as SearchFilters["seller"]) })}>
+          <SelectTrigger id={id("seller")} className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY}>Any seller</SelectItem>
+            {Object.entries(SELLER_TYPE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="space-y-2">
         <Label htmlFor={id("plantation")}>Plantation type</Label>
         <Input id={id("plantation")} placeholder="e.g. Arabica, pepper" defaultValue={value.plantation ?? ""}
@@ -113,7 +110,6 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
           <Label htmlFor={id("water")} className="font-normal">Water available</Label>
         </div>
       </fieldset>
-      <p className="text-xs text-muted-foreground">Every listing shown has been reviewed and verified.</p>
     </div>
   );
 }
@@ -142,13 +138,12 @@ export function DesktopFilters({ filters, locations }: Props) {
 
   const count = activeFilterCount(filters);
   return (
-    <aside aria-label="Filters" aria-busy={pending} className="hidden w-64 shrink-0 border-r pr-8 lg:block">
-      <div className="sticky top-24 space-y-4">
-        <div className="flex items-center justify-between">
+    <aside aria-label="Filters" aria-busy={pending} className="hidden w-64 shrink-0 lg:block">
+      <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-4 overflow-y-auto rounded-md border bg-card p-5 [scrollbar-width:thin]">
+        <div className="flex h-6 items-center justify-between">
           <h2 className="font-semibold">Filters {count > 0 && <Badge variant="secondary" className="ml-1">{count}</Badge>}</h2>
           {count > 0 && <Button variant="link" size="sm" className="h-auto p-0" onClick={() => go({ ...filters, ...CLEARED })}>Clear all</Button>}
         </div>
-        <Separator />
         <FilterFields key={toQueryString(filters)} value={filters} onChange={onChange} locations={locations} idPrefix="d" />
       </div>
     </aside>
@@ -173,7 +168,7 @@ export function MobileFilters({ filters, locations }: Props) {
           <SlidersHorizontal /> Filters {count > 0 && <Badge variant="secondary">{count}</Badge>}
         </Button>
       </SheetTrigger>
-      <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+      <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-md">
         <SheetHeader><SheetTitle>Filters</SheetTitle></SheetHeader>
         <div className="px-4">
           <FilterFields key={open ? "open" : "closed"} value={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}

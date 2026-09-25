@@ -31,20 +31,18 @@ const COLUMNS = [
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t bg-muted/60">
-      <div className="wrap grid gap-12 py-16 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div className="space-y-4">
+      <div className="wrap grid gap-10 py-12 sm:grid-cols-2 md:grid-cols-[1.6fr_repeat(3,1fr)]">
+        <div className="space-y-3">
           <Logo />
-          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Land, coffee estates and homes across Kodagu, each one reviewed by our team before it is published.
-          </p>
+          <p className="max-w-xs text-sm text-muted-foreground">Verified land and estates across Coorg.</p>
         </div>
         {COLUMNS.map((col) => (
-          <nav key={col.title} aria-label={col.title} className="space-y-4">
-            <h2 className="eyebrow">{col.title}</h2>
-            <ul className="space-y-2.5">
+          <nav key={col.title} aria-label={col.title} className="space-y-3">
+            <h2 className="text-sm font-semibold">{col.title}</h2>
+            <ul className="space-y-2">
               {col.links.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-foreground/80 hover:text-foreground hover:underline hover:underline-offset-4">{l.label}</Link>
+                  <Link href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
                 </li>
               ))}
             </ul>
@@ -52,10 +50,10 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="border-t">
-        <p className="wrap py-6 text-xs leading-relaxed text-muted-foreground">
-          © {new Date().getFullYear()} Land in Coorg. Listing information is reviewed by the platform; buyers should complete
-          independent legal verification before purchase.
-        </p>
+        <div className="wrap flex flex-col gap-1 py-5 text-xs text-muted-foreground sm:flex-row sm:justify-between">
+          <p>© {new Date().getFullYear()} Land in Coorg</p>
+          <p>Buyers should complete independent legal verification before purchase.</p>
+        </div>
       </div>
     </footer>
   );

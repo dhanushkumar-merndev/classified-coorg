@@ -45,7 +45,7 @@ export function TrendChart({ title, points, kind = "line" }: { title: string; po
 
   const total = points.reduce((s, p) => s + p.value, 0);
   return (
-    <figure className="relative rounded-lg border bg-card p-5">
+    <figure className="relative rounded-md border bg-card p-5">
       <figcaption className="mb-3 flex items-baseline justify-between text-sm font-medium">
         {title}<span className="text-xl font-medium tracking-tight">{total}</span>
       </figcaption>

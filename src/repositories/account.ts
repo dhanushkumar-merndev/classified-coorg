@@ -32,7 +32,8 @@ export async function getOverview(userId: string, isSeller: boolean) {
   const [saved, sent, received, statuses] = await Promise.all([
     supabase.from("favorites").select("property_id", head).eq("user_id", userId),
     supabase.from("enquiries").select("id", head).eq("buyer_id", userId),
-    isSeller ? supabase.from("enquiries").select("id", head).eq("seller_id", userId).eq("status", "new") : Promise.resolve({ count: 0 }),
+    // Broker model: owners see how many buyers are interested, never who.
+    isSeller ? supabase.rpc("seller_enquiry_counts") : Promise.resolve({ data: [] }),
     isSeller ? supabase.rpc("my_listing_status_counts") : Promise.resolve({ data: [] }),
   ]);
   const byStatus: Partial<Record<PropertyStatus, number>> = {};
@@ -42,7 +43,7 @@ export async function getOverview(userId: string, isSeller: boolean) {
   return {
     saved: saved.count ?? 0,
     sentEnquiries: sent.count ?? 0,
-    newReceived: received.count ?? 0,
+    interestedBuyers: (((received as { data: unknown }).data ?? []) as Array<{ total: number }>).reduce((n, r) => n + Number(r.total), 0),
     byStatus,
   };
 }
@@ -134,31 +135,6 @@ export async function listSentEnquiries(userId: string, pageNumber: number): Pro
     .range(from, to);
   if (error) throw fromDatabaseError(error);
   return paged((data ?? []) as unknown as SentEnquiry[], count, page);
-}
-
-export interface ReceivedEnquiry {
-  id: string;
-  property_id: string;
-  property_title: string;
-  property_slug: string;
-  property_status: PropertyStatus;
-  buyer_name: string | null;
-  buyer_phone: string | null;
-  message: string | null;
-  status: "new" | "read" | "closed";
-  created_at: string;
-  total: number;
-}
-
-export async function listReceivedEnquiries(pageNumber: number, status?: "new" | "read" | "closed"): Promise<Paged<ReceivedEnquiry>> {
-  const { page, from } = range(pageNumber);
-  const supabase = await createSessionClient();
-  const { data, error } = await supabase.rpc("list_received_enquiries", {
-    p_status: status ?? null, p_limit: DASHBOARD_PAGE_SIZE, p_offset: from,
-  });
-  if (error) throw fromDatabaseError(error);
-  const rows = (data ?? []) as ReceivedEnquiry[];
-  return paged(rows, rows[0] ? Number(rows[0].total) : 0, page);
 }
 
 export async function getMyProfile(userId: string) {

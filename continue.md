@@ -1006,3 +1006,78 @@ Listing expiry period, seller/agent inventory quotas, report workflow (GAP-06), 
    - set the production CORS origin and `CRON_SECRET`
    - add privacy/terms copy (GAP-28)
    - remove the MSG91 widget env vars
+
+## 31. Status — 25 September 2026
+
+### Verified now
+
+- **Playwright: 40/40 pass, also in headed mode** (`pnpm e2e`, `pnpm e2e:headed`, `DISPLAY=:0`):
+  - 29 public/API/accessibility tests: every public page renders and passes an axe WCAG A/AA scan for serious issues; one shared content width; dropdowns don't shift the page and open below the field; security headers; signed-out redirects; unsigned SMS hook and cron endpoints refused; foreign-origin uploads refused; hidden documents/media 404.
+  - 11 role tests: seller creates a draft, fills it in, uploads a photo and a document and submits → the submitted listing is locked and not public → admin opens the private document and approves → the listing is public with structured data → buyer saves it and sends one enquiry with a double click → seller sees it and marks it read → buyer cannot reach `/admin` or seller pages → admin suspends the seller (listing gone) and reactivates.
+- `pnpm test`: unit, DB and live integration suites green.
+
+### Bugs found and fixed by the browser tests
+
+- The SMS hook returned 500 before checking the signature whenever MSG91 settings were incomplete; unsigned calls now get 401 first, and MSG91 settings are read only at send time.
+- `/admin/users` crashed: profiles and user_roles have two foreign keys, so the embed was ambiguous.
+- Save and Contact owner sent a signed-in user to login when clicked before the session finished loading; both are now disabled until it is known.
+- Contrast and ARIA violations on the home page (light grey text, skeleton `aria-label`, Verified badge `aria-label`); the login page had no `<h1>`.
+
+### Still to do
+
+- Admin: locations CRUD, articles CRUD, audit-log page (super admin), enquiries view.
+- Real SMS: ngrok is installed at `~/.local/bin/ngrok`; it needs your authtoken, `ngrok http 3000`, then the hook URI updated, plus `MSG91_OTP_TEMPLATE_ID`.
+- Tests not yet written: responsive widths 360/390/430/768/1024, seller edit conflict (two tabs), upload retry UX, RLS negative tests via the browser, Lighthouse and performance budgets.
+- Remaining lint errors: `account-provider.tsx:63` and stock `ui/carousel.tsx`.
+- Launch checklist unchanged (§30 step 7).
+
+## 32. Admin e2e + full-suite run (2026-09-25)
+
+- Added `e2e/admin.spec.ts` (13 checks incl. setup): admin oversight pages render, audit logs super-admin only, location create/edit/duplicate-slug, article draft not public, buyer/seller 404 on all `/admin/*`. All pass.
+- `auth.setup.ts` now also signs in SUPER_ADMIN and AGENT.
+- Full run: typecheck clean, unit 122 pass, Playwright 42 pass. Journey spec + Supabase integration test are blocked only by the staging `property_create` limit (10 drafts/day per seller) and OTP cooldown, both consumed by repeated runs. Counters live in `app.rate_limits`; clear them (or wait 24 h) and rerun.
+- Pre-launch reminders (rate limits, test OTP, ngrok hook): see remember.md
+
+## 33. UI refresh, guides content, nav fix (2026-09-25)
+
+- **Sticky header bug fixed**: `html { overflow-y: scroll }` made `<body>` the scroll container whenever Radix locked scrolling (any open dropdown), so the header snapped away after scrolling. Replaced with `scrollbar-gutter: stable` (globals.css). Regression test in `e2e/public.spec.ts`.
+- **Design refresh** (user request: modern, clean, minimal, less text, one corner radius): white surfaces + neutral lines; every `rounded-lg/xl/2xl/4xl` → `rounded-md` (incl. shadcn ui files); Card uses `border`; no editorial eyebrows/numbering; `PageIntro` has no bottom rule (fixed double lines); header = pill nav + primary "Post a property"; property cards are bordered with a one-line title; locations/types/guides/verification are card grids with icons (`components/property/type-icon.tsx`); filters sit in a card, seller type is a select; footer simplified; login card centred.
+- Login: removed the "We never share your number publicly…" note (user request).
+- **Guides**: migration `20260925000100_seed_guides.sql` publishes 5 guides (documents, units, coffee estates, conversion, site visit). Renderer supports `## ` heading lines and `- ` bullets. Content is general information with a not-legal-advice note; have it reviewed before launch.
+- Journey spec now ends by marking the listing sold and archiving it, so runs no longer leave public test listings. 9 old E2E listings were retired the same way.
+- Real SMS: ngrok tunnel → Supabase `auth.hook.send_sms.uri` now points at the ngrok URL (auth config pushed). Delivery still needs `MSG91_OTP_TEMPLATE_ID` (DLT). `storage.analytics.enabled` set false (paid-tier only; broke `config push`).
+- Tests: tsc clean, unit 128/128, Playwright 54/54. Lint: 2 known `set-state-in-effect` errors remain (account-provider, stock carousel).
+
+## 34. MSG91 OTP widget login (2026-09-25)
+
+User chose the MSG91 widget (no own DLT template needed). **This changes SMS-001**: for real numbers MSG91 now generates and checks the code; Supabase still owns users and sessions.
+
+- Flow: `startLoginAction` → staging test numbers (`AUTH_TEST_OTP_PHONES`) or widget disabled → Supabase OTP as before; otherwise the browser uses `window.sendOtp/verifyOtp/retryOtp` (widget `exposeMethods`, our shadcn form is the UI; code length and resend time come from widget settings — currently 4 digits / 10 s; invisible captcha handled by the widget).
+- `verifyWidgetLoginAction` → `signInWithWidgetToken` (auth.service): rate limits (otp_verify_phone/ip) → MSG91 `verifyAccessToken` with the server-only authkey (HTTP 200 + `type:"error"` means refused) → the phone MSG91 attests (answer `message`, else claims of the MSG91-accepted JWT) **must equal** the typed phone → token single-use via `register_webhook_receipt('msg91_widget', sha256)` → find user via `auth_user_id_by_phone` (unique-index probe, service-role only; migration 20260925000200) or `admin.createUser` → one-time random password → `signInWithPassword` (sets cookies) → password rotated immediately → `ensure_profile`.
+- CSP: MSG91 + hCaptcha/reCAPTCHA hosts allowed on `/login` only; MSG91's analytics script (`pass.hostnsoft.com`) stays blocked (no-op `TraceIQ` shim).
+- If a real login fails with "incorrect or expired" after a correct code, check the server log for `auth.widget_phone_mismatch` (it records `messageKind` and JWT `claimKeys`, never values) — that means MSG91's answer shape differs from what we read.
+- Tests: `src/services/sms/msg91-widget.test.ts` (6), `e2e/login.spec.ts` (stubbed widget: widget path, wrong code, forged token → no session, CSP scope). Supabase half verified on a staging account (lookup, anon denied, one-time password session, rotated password refused).
+- Fixed React "Select changing from uncontrolled to controlled" in the listing editor (`value ?? ""`).
+- Results: tsc clean, unit 134/134, Playwright 57/57 (also headed).
+
+## 35. Broker model, photo rules, listing page, widget server mode (2026-09-25)
+
+**Business model:** Land in Coorg earns commission as the middleman. Buyers deal only with the platform; owners only with the platform.
+- Public never sees seller name (user decision: "don't show"), contact details, exact address or coordinates. Seller *type* (owner/agent/developer) stays visible. Only admins see owner name/phone.
+- DB (migrations 20260925000300–0500): anon SELECT on `properties` is a column allowlist (no owner_id/address_text/latitude/longitude…); `get_listing_seller` not executable by clients; enquiries readable by the buyer and admins only; `list_received_enquiries` revoked; `seller_enquiry_counts` = counts only (security definer); `update_enquiry_status` admin-only + audited; `create_enquiry` notifies active admins, not the owner; `app.text_has_contact_details` blocks submission when title/description contain an Indian mobile number or email (`contact_details` gap).
+- App: listing page has no seller card/address ("exact address shared when you arrange a site visit"); CTA "Enquire now" (+ Call/WhatsApp when `NEXT_PUBLIC_CONTACT_PHONE` is set); `/dashboard/received` redirects to My properties; owners see "N interested buyers"; `/admin/enquiries` is the work queue with buyer + owner phone links, "Mark as called" / Close.
+**Photo rules** (migration 0600 + `src/lib/media/photo-rules.ts`): ≥4 photos, ≥1 portrait and ≥1 landscape (long ÷ short ≥ 1.2), min 1200 × 800 / 800 × 1200. Browser checks type/size/EXIF-rotated dimensions before upload; server re-checks size; editor shows a live checklist and orientation badges.
+**Listing page:** title + price header, adaptive gallery (no empty cells for 2–5 photos, portrait-safe), fact tiles, amenities, features, town-level location, sticky enquiry panel.
+**Login:** "OTP service could not be reached" = browser blocked MSG91's script (Brave Shields / ad blockers). With widget captcha **off**, login now runs server-side automatically (`msg91-widget-api.ts`: getWidgetProcess → sendOtp/verifyOtp from our server, our per-phone/IP limits apply); with captcha **on**, the browser widget is used.
+- Tests: db 63/63, unit+db 132 (integration suite blocked only by the staging seller's `property_create` 10/day limit, reset with `pnpm e2e:reset`), Playwright public/api/a11y/login/admin 48/48. Journey spec needs the reset too.
+
+## 36. Login fixes, fingerprint limit, test run (2026-09-25)
+
+- **Real cause of "Sending code…" hang:** login CSP allowed `*.hcaptcha.com` but the widget loads `https://hcaptcha.com/1/api.js` (apex) → captcha never loaded. Fixed (+ `worker-src 'self' blob:` for hCaptcha's proof-of-work). Widget calls now time out after 45 s with a clear message instead of hanging. hCaptcha warns on `localhost`; the real SMS reached the code screen both on localhost and via the ngrok host (`allowedDevOrigins` set for dev).
+- **Token check hardened:** accepts padded/standard-base64 JWTs, finds the attested phone anywhere in MSG91's answer or token claims (depth ≤ 6); every refusal logs its reason, and in development a structure-only record goes to `.scratch/auth-debug.log` (no token/code/full number).
+- **Fingerprint limit:** 2 code requests per minute per browser (`otp_request_fingerprint`, migration 0700). Key = sha256(client fingerprint hash + user-agent + accept-language), applied to every send path.
+- **SMS-006 for server mode:** outside production our server texts only `SMS_TEST_ALLOWLIST` numbers; others use the browser widget (stubbed in tests), so tests can never text a real stranger.
+- OTP boxes are full-width, rounded-md, sized to the widget's code length.
+- `E2E_LISTER=agent` lets the journey + integration tests list with the staging agent when the seller's 10 drafts/day are used. Journey now retires its listing in `afterAll` even when a step fails.
+- **Results:** tsc clean; unit + db + integration 140/140; Playwright 58/58 (public, api, a11y, login, admin, full journey). Lint: the 2 known `set-state-in-effect` errors only.
+- Pending (user): real OTP on 9036215854 as the last test; decide captcha on/off; business phone for `NEXT_PUBLIC_CONTACT_PHONE`.

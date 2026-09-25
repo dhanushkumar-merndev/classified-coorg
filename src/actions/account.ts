@@ -66,7 +66,7 @@ export async function updateEnquiryStatusAction(input: { enquiryId: string; stat
     const supabase = await createSessionClient();
     const { data, error } = await supabase.rpc("update_enquiry_status", { p_enquiry_id: input.enquiryId, p_status: input.status });
     if (error) throw fromDatabaseError(error);
-    revalidatePath("/dashboard/received");
+    revalidatePath("/admin/enquiries");
     return data as { status: string; changed: boolean };
   });
 }

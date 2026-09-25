@@ -13,7 +13,6 @@ const ANON_EXECUTABLE = [
   "app.is_active_user",
   "app.is_admin",
   "app.listing_visible",
-  "public.get_listing_seller",
   "public.location_listing_counts",
 ];
 
@@ -30,7 +29,6 @@ const AUTHENTICATED_EXECUTABLE = [
   "public.create_enquiry",
   "public.delete_property_draft",
   "public.ensure_profile",
-  "public.list_received_enquiries",
   "public.my_listing_status_counts",
   "public.record_property_view",
   "public.remove_property_document",
@@ -48,7 +46,7 @@ const CLIENT_TABLE_PRIVILEGES: Record<string, { anon: string[]; authenticated: s
   locations: { anon: ["SELECT"], authenticated: ["SELECT"] },
   notifications: { anon: [], authenticated: ["SELECT"] },
   profiles: { anon: [], authenticated: ["SELECT"] },
-  properties: { anon: ["SELECT"], authenticated: ["SELECT"] },
+  properties: { anon: [], authenticated: ["SELECT"] }, // anon: column-level allowlist below
   property_documents: { anon: [], authenticated: ["SELECT"] },
   property_features: { anon: ["SELECT"], authenticated: ["DELETE", "SELECT"] },
   property_media: { anon: ["SELECT"], authenticated: ["SELECT"] },
@@ -85,6 +83,17 @@ describe("object inventory", () => {
           .sort();
         expect({ table, role, actual }).toEqual({ table, role, actual: expected[role] });
       }
+    }
+  });
+
+  test("anon reads listings through a column allowlist only (broker model)", async () => {
+    const cols = (await db.sql<{ column_name: string }>(
+      `select column_name from information_schema.column_privileges
+       where table_schema = 'public' and table_name = 'properties' and grantee = 'anon' and privilege_type = 'SELECT'`))
+      .map((c) => c.column_name);
+    expect(cols.length).toBeGreaterThan(10);
+    for (const secret of ["owner_id", "address_text", "latitude", "longitude", "owner_suspended", "current_revision_id", "deleted_at"]) {
+      expect(cols).not.toContain(secret);
     }
   });
 

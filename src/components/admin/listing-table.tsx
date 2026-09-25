@@ -6,7 +6,7 @@ import type { AdminListingRow } from "@/repositories/admin";
 
 export function ListingTable({ rows }: { rows: AdminListingRow[] }) {
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow><TableHead>Listing</TableHead><TableHead>Owner</TableHead><TableHead>Price</TableHead><TableHead>Status</TableHead><TableHead>Updated</TableHead></TableRow>

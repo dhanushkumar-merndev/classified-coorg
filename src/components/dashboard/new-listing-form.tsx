@@ -20,7 +20,7 @@ export function NewListingForm() {
       <RadioGroup value={type} onValueChange={setType} className="grid gap-3 sm:grid-cols-2">
         {PROPERTY_TYPES.map((t) => (
           <Label key={t} htmlFor={`type-${t}`}
-            className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent">
+            className="flex cursor-pointer items-center gap-3 rounded-md border p-4 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-accent">
             <RadioGroupItem id={`type-${t}`} value={t} />
             {PROPERTY_TYPE_LABELS[t]}
           </Label>

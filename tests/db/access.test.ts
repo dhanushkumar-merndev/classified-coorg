@@ -176,7 +176,7 @@ describe("buyer interactions", () => {
     expect(await db.rows(user(b), "delete from public.favorites where user_id = $1 returning 1", [a])).toEqual([]);
   });
 
-  test("enquiries: derived parties, idempotent, no self-contact, participants only (GAP-08)", async () => {
+  test("enquiries: derived parties, idempotent, no self-contact, buyer and platform only (broker model)", async () => {
     const { id, owner } = await publishedListing();
     const buyer = await db.createUser();
     const stranger = await db.createUser();
@@ -188,8 +188,10 @@ describe("buyer interactions", () => {
       user(buyer), "select public.create_enquiry($1, 'Is the road motorable in monsoon?', $2) as r", [id, key]);
     expect(again).toEqual({ enquiry_id: first.enquiry_id, replayed: true });
 
-    expect(await db.rows(user(owner), "select buyer_id from public.enquiries where id = $1", [first.enquiry_id]))
-      .toEqual([{ buyer_id: buyer }]);
+    expect(await db.rows(user(buyer), "select id from public.enquiries where id = $1", [first.enquiry_id]))
+      .toEqual([{ id: first.enquiry_id }]);
+    // The owner never learns who enquired: the platform brokers the deal.
+    expect(await db.rows(user(owner), "select buyer_id from public.enquiries where id = $1", [first.enquiry_id])).toEqual([]);
     expect(await db.rows(user(stranger), "select id from public.enquiries where id = $1", [first.enquiry_id])).toEqual([]);
     expect(await db.error(user(owner), "select public.create_enquiry($1, null, $2)", [id, randomUUID()]))
       .toBe("SELF_ENQUIRY_FORBIDDEN");
@@ -201,8 +203,17 @@ describe("buyer interactions", () => {
     const draft = await db.createCompleteDraft(draftOwner);
     expect(await db.error(user(buyer), "select public.create_enquiry($1, null, $2)", [draft, randomUUID()]))
       .toBe("PROPERTY_NOT_AVAILABLE");
-    expect(await db.sql("select count(*)::int as n from public.notification_intents where event_type = 'new_enquiry' and entity_id = $1",
-      [first.enquiry_id])).toEqual([{ n: 1 }]);
+    // Notified: every active admin, never the owner.
+    const [counts] = await db.sql<{ total: number; to_owner: number; non_admin: number }>(
+      `select count(*)::int as total,
+              count(*) filter (where n.recipient_id = $2)::int as to_owner,
+              count(*) filter (where not exists (
+                select 1 from public.user_roles ur join public.roles r on r.id = ur.role_id
+                where ur.user_id = n.recipient_id and r.name in ('admin', 'super_admin')))::int as non_admin
+       from public.notification_intents n where n.event_type = 'new_enquiry' and n.entity_id = $1`,
+      [first.enquiry_id, owner]);
+    expect(counts!.total).toBeGreaterThan(0);
+    expect(counts).toMatchObject({ to_owner: 0, non_admin: 0 });
   });
 
   test("enquiry creation is rate limited per buyer", async () => {
@@ -298,21 +309,30 @@ describe("upload sessions", () => {
   test("arranging media accepts exactly the listing's own photos", async () => {
     const owner = await db.createUser({ roles: ["seller"] });
     const id = await db.createCompleteDraft(owner);
-    const second = await db.finalizeUpload(owner, id, "property_image");
-    const [first] = await db.sql<{ id: string }>(
-      "select id from public.property_media where property_id = $1 and id <> $2", [id, second]);
+    const extra = await db.finalizeUpload(owner, id, "property_image");
+    const others = (await db.sql<{ id: string }>(
+      "select id from public.property_media where property_id = $1 and id <> $2 order by sort_order", [id, extra])).map((r) => r.id);
+    const order = [extra, ...others];
     expect(await db.error(user(owner), "select public.arrange_property_media($1, $2, $3)",
-      [id, [second, randomUUID()], second])).toBe("VALIDATION_FAILED");
-    await db.rows(user(owner), "select public.arrange_property_media($1, $2, $3)", [id, [second, first.id], second]);
+      [id, [extra, randomUUID()], extra])).toBe("VALIDATION_FAILED");
+    await db.rows(user(owner), "select public.arrange_property_media($1, $2, $3)", [id, order, extra]);
     expect(await db.sql("select id, sort_order, is_cover from public.property_media where property_id = $1 order by sort_order", [id]))
-      .toEqual([{ id: second, sort_order: 0, is_cover: true }, { id: first.id, sort_order: 1, is_cover: false }]);
+      .toEqual(order.map((m, i) => ({ id: m, sort_order: i, is_cover: i === 0 })));
     const stranger = await db.createUser({ roles: ["seller"] });
     expect(await db.error(user(stranger), "select public.arrange_property_media($1, $2, $3)",
-      [id, [second, first.id], second])).toBe("PROPERTY_NOT_FOUND");
+      [id, order, extra])).toBe("PROPERTY_NOT_FOUND");
   });
 });
 
 describe("rate limiter", () => {
+  test("login codes: 2 per minute per browser fingerprint", async () => {
+    const call = (fp: string) =>
+      db.rows<{ r: { allowed: boolean; retry_after_seconds: number } }>(service,
+        "select public.consume_rate_limit('otp_request_fingerprint', $1) as r", [fp]).then((rows) => rows[0].r.allowed);
+    expect([await call("fp-a"), await call("fp-a"), await call("fp-a")]).toEqual([true, true, false]);
+    expect(await call("fp-b")).toBe(true);
+  });
+
   test("fixed window is atomic per subject and reports retry time", async () => {
     const call = (subject: string) =>
       db.rows<{ r: { allowed: boolean; retry_after_seconds: number } }>(service,

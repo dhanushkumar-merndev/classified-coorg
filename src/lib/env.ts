@@ -59,3 +59,44 @@ export const smsEnv = loader(
     allowlist: new Set(env.SMS_TEST_ALLOWLIST.split(",").map((s) => s.trim()).filter(Boolean)),
   })),
 );
+
+const hookSchema = z.object({
+  SEND_SMS_HOOK_SECRET: z.string().startsWith("v1,whsec_"),
+  SMS_TEST_ALLOWLIST: z.string().default(""),
+});
+
+export const hookEnv = loader(
+  "SMS hook",
+  hookSchema.transform((env) => ({
+    ...env,
+    allowlist: new Set(env.SMS_TEST_ALLOWLIST.split(",").map((s) => s.trim()).filter(Boolean)),
+  })),
+);
+
+// MSG91 OTP widget: browser sends/verifies, server re-checks the token with
+// the authkey. Unset widget id → every number uses Supabase OTP (hook path).
+// AUTH_TEST_OTP_PHONES: staging numbers with fixed Supabase test codes
+// ([auth.sms.test_otp]); they skip the widget so tests never send real SMS.
+const widgetSchema = z.object({
+  NEXT_PUBLIC_MSG91_WIDGET_ID: z.string().default(""),
+  NEXT_PUBLIC_MSG91_TOKEN_AUTH: z.string().default(""),
+  MSG91_AUTH_KEY: z.string().default(""),
+  AUTH_TEST_OTP_PHONES: z.string().default(""),
+  SMS_TEST_ALLOWLIST: z.string().default(""),
+  APP_ENV: z.enum(["local", "staging", "production"]).default("local"),
+});
+
+export const widgetEnv = loader(
+  "MSG91 widget",
+  widgetSchema.transform((env) => ({
+    enabled: Boolean(env.NEXT_PUBLIC_MSG91_WIDGET_ID && env.NEXT_PUBLIC_MSG91_TOKEN_AUTH && env.MSG91_AUTH_KEY),
+    widgetId: env.NEXT_PUBLIC_MSG91_WIDGET_ID,
+    tokenAuth: env.NEXT_PUBLIC_MSG91_TOKEN_AUTH,
+    authKey: env.MSG91_AUTH_KEY,
+    testPhones: new Set(env.AUTH_TEST_OTP_PHONES.split(",").map((s) => s.trim()).filter(Boolean)),
+    // Outside production our server texts only these numbers (SMS-006); any
+    // other number uses the browser widget, which automated tests stub out.
+    serverSmsAllowed: (phone: string) =>
+      env.APP_ENV === "production" || env.SMS_TEST_ALLOWLIST.split(",").map((s) => s.trim()).includes(phone),
+  })),
+);

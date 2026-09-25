@@ -26,19 +26,19 @@ export default async function DashboardOverview() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {isSeller && <KpiCard label="Active listings" value={active} />}
         {isSeller && <KpiCard label="Under review" value={inReview} />}
-        {isSeller && <KpiCard label="New enquiries" value={o.newReceived} hint="Received on your listings" />}
+        {isSeller && <KpiCard label="Interested buyers" value={o.interestedBuyers} hint="Our team handles every enquiry" />}
         <KpiCard label="Saved properties" value={o.saved} />
         {!isSeller && <KpiCard label="Enquiries sent" value={o.sentEnquiries} />}
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {isSeller && needsAction > 0 && (
-          <ActionCard href="/dashboard/properties" title={`${needsAction} listing${needsAction === 1 ? "" : "s"} need your action`}
+          <ActionCard href="/dashboard/properties" title={`${needsAction} listing${needsAction === 1 ? " needs" : "s need"} your action`}
             body="Finish drafts or make the changes our reviewers requested." />
         )}
-        {isSeller && o.newReceived > 0 && (
-          <ActionCard href="/dashboard/received" title={`${o.newReceived} new enquir${o.newReceived === 1 ? "y" : "ies"}`}
-            body="Reply to interested buyers while they are still looking." />
+        {isSeller && o.interestedBuyers > 0 && (
+          <ActionCard href="/dashboard/properties" title={`${o.interestedBuyers} interested buyer${o.interestedBuyers === 1 ? "" : "s"}`}
+            body="Our team speaks to buyers and arranges visits. We will call you when a buyer is ready." />
         )}
         {!isSeller && (
           <ActionCard href="/dashboard/profile" title="Selling a property?"
