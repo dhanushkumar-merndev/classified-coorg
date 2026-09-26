@@ -6,20 +6,77 @@ import { EmptyState } from "@/components/common/empty-state";
 import { PageIntro } from "@/components/site/page-intro";
 import { formatDate } from "@/lib/format";
 import { getGuideImage } from "@/lib/guides";
+import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
+import { siteUrl } from "@/lib/site";
 import { getPublishedArticles } from "@/repositories/public-listings";
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Guides for buying land in Coorg",
-  description: "Practical guides on buying land, coffee estates and plots in Coorg (Kodagu).",
+  title: "Coorg Land Buying Guides | Legal Due Diligence, Jamma Bane & RTC",
+  description:
+    "Comprehensive guides to buying coffee estates and land in Coorg (Kodagu). Learn about Jamma Bane land rules, Bhoomi RTC verification, 11E sketch, and Karnataka registration.",
+  keywords: [
+    "Coorg land buying guide",
+    "Jamma Bane land rules Coorg",
+    "Bhoomi RTC Pahani verification",
+    "coffee estate due diligence Coorg",
+    "can outsiders buy land in Coorg",
+    "DC conversion Coorg",
+    "11E sketch Karnataka",
+    "buying property in Kodagu",
+  ],
   alternates: { canonical: "/guides" },
+  openGraph: {
+    title: "Coorg Land Buying Guides | Legal Due Diligence, Jamma Bane & RTC",
+    description:
+      "Essential guides on land laws, Jamma Bane tenure, RTC Pahani checks, and site visits in Coorg.",
+    url: siteUrl("/guides"),
+    siteName: "Land in Coorg",
+    locale: "en_IN",
+    type: "website",
+    images: [
+      {
+        url: siteUrl("/images/hero-coorg-landscape.webp"),
+        width: 1200,
+        height: 630,
+        alt: "Coorg Land Buying Guides",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Coorg Land Buying Guides | Legal Due Diligence, Jamma Bane & RTC",
+    description:
+      "Essential guides on land laws, Jamma Bane tenure, RTC Pahani checks, and site visits in Coorg.",
+    images: [siteUrl("/images/hero-coorg-landscape.webp")],
+  },
 };
 
 export default async function GuidesPage() {
   const articles = await getPublishedArticles(60);
   return (
     <div className="wrap py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
+          { name: "Home", url: siteUrl("/") },
+          { name: "Guides", url: siteUrl("/guides") },
+        ]))}
+      />
+      {articles.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={jsonLd(itemListLd(
+            articles.map((a) => ({
+              name: a.title,
+              url: siteUrl(`/guides/${a.slug}`),
+              image: siteUrl(getGuideImage(a.slug).src),
+              description: a.excerpt ?? undefined,
+            }))
+          ))}
+        />
+      )}
       <PageIntro title="Guides" lede="What to check before buying land in Coorg." />
       <div className="mt-8">
         {articles.length === 0 ? (

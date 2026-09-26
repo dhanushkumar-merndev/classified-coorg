@@ -4,14 +4,52 @@ import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
 import { PageIntro } from "@/components/site/page-intro";
 import { getLocationImage } from "@/lib/locations";
+import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
+import { siteUrl } from "@/lib/site";
 import { getLocationCounts, getLocations } from "@/repositories/public-listings";
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Locations in Coorg",
-  description: "Browse verified land, estates and plots by town and area across Coorg (Kodagu).",
+  title: "Locations in Coorg | Coffee Estates & Land by Town",
+  description:
+    "Explore verified coffee estates, farmland, and plots for sale by town across Coorg (Kodagu) including Madikeri, Kushalnagar, Virajpet, Somwarpet, Gonikoppal, and Suntikoppa.",
+  keywords: [
+    "Coorg property locations",
+    "Madikeri land for sale",
+    "Kushalnagar real estate",
+    "Virajpet coffee estates",
+    "Somwarpet farmland",
+    "Gonikoppal estate for sale",
+    "Suntikoppa land",
+    "Napoklu property",
+    "Kodagu towns real estate",
+  ],
   alternates: { canonical: "/locations" },
+  openGraph: {
+    title: "Locations in Coorg | Coffee Estates & Land by Town",
+    description:
+      "Explore verified coffee estates, farmland, and plots for sale by town across Coorg (Kodagu).",
+    url: siteUrl("/locations"),
+    siteName: "Land in Coorg",
+    locale: "en_IN",
+    type: "website",
+    images: [
+      {
+        url: siteUrl("/images/locations/madikeri.webp"),
+        width: 1200,
+        height: 630,
+        alt: "Overview of towns and properties across Coorg, Karnataka",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Locations in Coorg | Coffee Estates & Land by Town",
+    description:
+      "Explore verified coffee estates, farmland, and plots for sale by town across Coorg (Kodagu).",
+    images: [siteUrl("/images/locations/madikeri.webp")],
+  },
 };
 
 export default async function LocationsPage() {
@@ -20,6 +58,24 @@ export default async function LocationsPage() {
 
   return (
     <div className="wrap py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
+          { name: "Home", url: siteUrl("/") },
+          { name: "Locations", url: siteUrl("/locations") },
+        ]))}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(itemListLd(
+          towns.map((l) => ({
+            name: `${l.name}, Coorg`,
+            url: siteUrl(`/locations/${l.slug}`),
+            image: siteUrl(getLocationImage(l.slug).src),
+            description: `Properties, coffee estates and farmland for sale in ${l.name}, Kodagu.`,
+          }))
+        ))}
+      />
       <PageIntro title="Locations" lede="Pick a town to see its verified listings across Coorg." />
       <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="list">
         {towns.map((l) => {

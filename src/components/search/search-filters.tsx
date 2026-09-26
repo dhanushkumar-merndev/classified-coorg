@@ -2,7 +2,7 @@
 
 import { SlidersHorizontal, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ComponentProps } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AREA_UNIT_LABELS } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS } from "@/lib/labels";
-import { activeFilterCount, toQueryString, type SearchFilters } from "@/schemas/search.schema";
+import { activeFilterCount, toQueryString, type SearchFilters } from "@/schemas/search-params";
 import { cn } from "cn";
 
 // design.md §13–14: URL is the source of truth. Desktop applies changes
@@ -24,6 +24,16 @@ const ANY = "any";
 interface Props {
   filters: SearchFilters;
   locations: Array<{ slug: string; name: string }>;
+}
+
+// Keep the DOM node (and caret) while URL-driven results arrive. External
+// navigation and Clear still update inactive inputs.
+function FilterInput({ value, ...props }: Omit<ComponentProps<typeof Input>, "value" | "defaultValue"> & { value: string | number }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current && document.activeElement !== ref.current) ref.current.value = String(value);
+  }, [value]);
+  return <Input {...props} ref={ref} defaultValue={value} />;
 }
 
 function FilterFields({ value, onChange, locations, idPrefix }: {
@@ -38,7 +48,7 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
     <div className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor={id("q")}>Keyword</Label>
-        <Input id={id("q")} type="search" placeholder="e.g. estate with stream" defaultValue={value.q ?? ""}
+        <FilterInput id={id("q")} type="search" placeholder="e.g. estate with stream" value={value.q ?? ""}
           onChange={(e) => onChange({ q: e.target.value.trim() || undefined }, true)} />
       </div>
       <div className="space-y-2">
@@ -64,18 +74,18 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Price (₹)</legend>
         <div className="grid grid-cols-2 gap-2">
-          <Input aria-label="Minimum price in rupees" inputMode="numeric" placeholder="Min" defaultValue={value.minPrice ?? ""}
+          <FilterInput aria-label="Minimum price in rupees" inputMode="numeric" placeholder="Min" value={value.minPrice ?? ""}
             onChange={(e) => onChange({ minPrice: num(e.target.value) }, true)} />
-          <Input aria-label="Maximum price in rupees" inputMode="numeric" placeholder="Max" defaultValue={value.maxPrice ?? ""}
+          <FilterInput aria-label="Maximum price in rupees" inputMode="numeric" placeholder="Max" value={value.maxPrice ?? ""}
             onChange={(e) => onChange({ maxPrice: num(e.target.value) }, true)} />
         </div>
       </fieldset>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Area</legend>
         <div className="grid grid-cols-2 gap-2">
-          <Input aria-label="Minimum area" inputMode="numeric" placeholder="Min" defaultValue={value.minArea ?? ""}
+          <FilterInput aria-label="Minimum area" inputMode="numeric" placeholder="Min" value={value.minArea ?? ""}
             onChange={(e) => onChange({ minArea: num(e.target.value) }, true)} />
-          <Input aria-label="Maximum area" inputMode="numeric" placeholder="Max" defaultValue={value.maxArea ?? ""}
+          <FilterInput aria-label="Maximum area" inputMode="numeric" placeholder="Max" value={value.maxArea ?? ""}
             onChange={(e) => onChange({ maxArea: num(e.target.value) }, true)} />
         </div>
         <Select value={value.unit} onValueChange={(v) => onChange({ unit: v as SearchFilters["unit"] })}>
@@ -97,18 +107,18 @@ function FilterFields({ value, onChange, locations, idPrefix }: {
       </div>
       <div className="space-y-2">
         <Label htmlFor={id("plantation")}>Plantation type</Label>
-        <Input id={id("plantation")} placeholder="e.g. Arabica, pepper" defaultValue={value.plantation ?? ""}
+        <FilterInput id={id("plantation")} placeholder="e.g. Arabica, pepper" value={value.plantation ?? ""}
           onChange={(e) => onChange({ plantation: e.target.value.trim() || undefined }, true)} />
       </div>
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">Amenities</legend>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 py-1">
           <Checkbox id={id("road")} checked={value.road} onCheckedChange={(c) => onChange({ road: c === true })} />
-          <Label htmlFor={id("road")} className="font-normal">Road access</Label>
+          <Label htmlFor={id("road")} className="cursor-pointer py-1 font-normal select-none">Road access</Label>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 py-1">
           <Checkbox id={id("water")} checked={value.water} onCheckedChange={(c) => onChange({ water: c === true })} />
-          <Label htmlFor={id("water")} className="font-normal">Water available</Label>
+          <Label htmlFor={id("water")} className="cursor-pointer py-1 font-normal select-none">Water available</Label>
         </div>
       </fieldset>
     </div>
@@ -141,11 +151,11 @@ export function DesktopFilters({ filters, locations }: Props) {
   return (
     <aside aria-label="Filters" aria-busy={pending} className="hidden w-64 shrink-0 lg:block">
       <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-4 overflow-y-auto rounded-md border bg-card p-5">
-        <div className="flex h-6 items-center justify-between">
-          <h2 className="font-semibold">Filters {count > 0 && <Badge variant="secondary" className="ml-1">{count}</Badge>}</h2>
-          {count > 0 && <Button variant="link" size="sm" className="h-auto p-0" onClick={() => go({ ...filters, ...CLEARED })}>Clear all</Button>}
+        <div className="flex h-7 items-center justify-between">
+          <div className="flex items-center font-semibold text-base">Filters {count > 0 && <Badge variant="secondary" className="ml-1.5 border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{count}</Badge>}</div>
+          {count > 0 && <Button variant="link" size="sm" className="h-9 px-2 text-sm text-primary inline-flex items-center hover:underline" onClick={() => go({ ...filters, ...CLEARED })}>Clear all</Button>}
         </div>
-        <FilterFields key={toQueryString(filters)} value={filters} onChange={onChange} locations={locations} idPrefix="d" />
+        <FilterFields value={filters} onChange={onChange} locations={locations} idPrefix="d" />
       </div>
     </aside>
   );
@@ -165,8 +175,8 @@ export function MobileFilters({ filters, locations, className }: Props & { class
   return (
     <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(filters); }}>
       <SheetTrigger asChild>
-        <Button variant="outline" className={cn("w-full lg:hidden", className)}>
-          <SlidersHorizontal /> Filters {count > 0 && <Badge variant="secondary">{count}</Badge>}
+        <Button variant="outline" className={cn("w-full h-11 lg:hidden", className)}>
+          <SlidersHorizontal /> Filters {count > 0 && <Badge variant="secondary" className="border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">{count}</Badge>}
         </Button>
       </SheetTrigger>
       <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-md">
@@ -175,11 +185,11 @@ export function MobileFilters({ filters, locations, className }: Props & { class
           <FilterFields key={open ? "open" : "closed"} value={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
             locations={locations} idPrefix="m" />
         </div>
-        <SheetFooter className="sticky bottom-0 flex-row gap-2 border-t bg-card">
-          <Button variant="outline" className="flex-1" onClick={() => { setDraft({ ...draft, ...CLEARED }); }}>
+        <SheetFooter className="sticky bottom-0 flex-row gap-2 border-t bg-card p-4">
+          <Button variant="outline" className="flex-1 h-11" onClick={() => { setDraft({ ...draft, ...CLEARED }); }}>
             <X /> Clear
           </Button>
-          <Button className="flex-1" onClick={() => { go(draft); setOpen(false); }}>Show results</Button>
+          <Button className="flex-1 h-11" onClick={() => { go(draft); setOpen(false); }}>Show results</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -191,7 +201,7 @@ export function SortSelect({ filters, className }: { filters: SearchFilters; cla
   const pathname = usePathname();
   return (
     <Select value={filters.sort} onValueChange={(sort) => router.push(`${pathname}${toQueryString(filters, { sort: sort as SearchFilters["sort"], page: 1 })}`, { scroll: false })}>
-      <SelectTrigger aria-label="Sort results" className={cn("w-full sm:w-48", className)}><SelectValue /></SelectTrigger>
+      <SelectTrigger aria-label="Sort results" className={cn("w-full h-11 sm:w-48", className)}><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="newest">Newest first</SelectItem>
         <SelectItem value="price_asc">Price: low to high</SelectItem>

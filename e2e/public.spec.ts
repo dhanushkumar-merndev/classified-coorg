@@ -102,3 +102,20 @@ test("login card is centred in the viewport", async ({ page }) => {
   expect(Math.abs(box.x + box.width / 2 - 1342 / 2)).toBeLessThan(12);
   expect(Math.abs(box.y + box.height / 2 - 900 / 2)).toBeLessThan(60);
 });
+
+test("keyword keeps focus through result updates and clears correctly", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/properties");
+  const keyword = page.locator("#d-q");
+  await keyword.fill("coffee");
+  await expect(page).toHaveURL(/q=coffee/);
+  await expect(page.getByRole("complementary", { name: "Filters" })).toHaveAttribute("aria-busy", "false");
+  await expect(keyword).toBeFocused();
+  await keyword.press("End");
+  await keyword.pressSequentially(" estate");
+  await expect(page).toHaveURL(/q=coffee(?:\+|%20)estate/);
+  await expect(keyword).toBeFocused();
+  await expect(keyword).toHaveValue("coffee estate");
+  await page.getByRole("button", { name: "Clear all", exact: true }).click();
+  await expect(keyword).toHaveValue("");
+});

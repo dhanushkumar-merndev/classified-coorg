@@ -247,13 +247,13 @@ export function planJobs(info: SourceInfo): PlannedJob[] {
   const cap = VIDEO_LIMITS.maxDurationSeconds + VIDEO_LIMITS.durationToleranceSeconds;
   const duration = Math.min(info.durationSeconds, cap);
   const heavy = info.width * info.height * Math.min(info.fps, 60) > 1920 * 1080 * 31;
-  const chunkSeconds = heavy ? VIDEO_TIMING.heavyChunkSeconds : VIDEO_TIMING.chunkSeconds;
-  // A sub-second remainder joins the previous chunk instead of making its own.
-  const count = Math.max(1, Math.ceil((duration - 0.5) / chunkSeconds));
+  const baseChunkSeconds = heavy ? VIDEO_TIMING.heavyChunkSeconds : VIDEO_TIMING.chunkSeconds;
   const fps = info.fps > VIDEO_LIMITS.maxFps + 0.5 ? VIDEO_LIMITS.maxFps : null;
 
   const jobs: PlannedJob[] = [];
   for (const rung of planLadder(info)) {
+    const chunkSeconds = Math.min(rung.width, rung.height) >= 2160 ? VIDEO_TIMING.uhdChunkSeconds : baseChunkSeconds;
+    const count = Math.max(1, Math.ceil((duration - 0.5) / chunkSeconds));
     for (let chunk = 0; chunk < count; chunk++) {
       const start = chunk * chunkSeconds;
       jobs.push({

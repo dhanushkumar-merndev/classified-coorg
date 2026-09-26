@@ -48,3 +48,9 @@ Watch: Supabase Auth's own `sign_in_sign_ups` limit (30 per 5 min per IP) sees o
 ## Login (MSG91 widget)
 - MSG91 (not Supabase) verifies codes for real numbers (continue.md §34). `SEND_SMS_HOOK_SECRET` is set on production. The Supabase SMS hook is only a fallback, and it won't send until `MSG91_OTP_TEMPLATE_ID` is set.
 - If you get a custom domain: update `NEXT_PUBLIC_SITE_URL` on Vercel, `PROD_SITE_URL` in `.env.production.local`, run `config push` on production, and add the domain to the Tigris CORS rules.
+
+## Temporary shared database — 26 September 2026
+- User requested Vercel production use the same Supabase project as `.env` (`gtwzpyzdfowmfmlxycfl`) and its matching staging Tigris storage. Accounts and listing changes are shared with local development.
+- `.env.production.local` and `scripts/supabase-prod.mjs` still describe the separate original production project; do not assume that project is the live website database.
+- Vercel builds use `pnpm exec next build --webpack` after the Turbopack Google font build failed.
+- The existing demo video was moved to listing `23-acre-well-maintained-robusta-estate-with-processing-units-block-2-97` at the user's request.

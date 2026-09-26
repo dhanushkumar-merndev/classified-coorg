@@ -21,11 +21,48 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<"/guides/[slug]">): Promise<Metadata> {
   const article = await getArticleBySlug((await params).slug);
   if (!article) return { title: "Guide not found", robots: { index: false } };
+  const guideImage = getGuideImage(article.slug);
+  const imageUrl = siteUrl(guideImage.src);
+  const title = article.seo_title ?? `${article.title} | Coorg Land Buying Guide`;
+  const description = article.seo_description ?? truncate(article.excerpt ?? article.body, 160);
+  const canonical = siteUrl(`/guides/${article.slug}`);
+
   return {
-    title: article.seo_title ?? article.title,
-    description: article.seo_description ?? truncate(article.excerpt ?? article.body, 160),
-    alternates: { canonical: `/guides/${article.slug}` },
-    openGraph: { type: "article", publishedTime: article.published_at, modifiedTime: article.updated_at },
+    title,
+    description,
+    keywords: [
+      article.title,
+      "Buying land in Coorg",
+      "Coorg property verification",
+      "Kodagu land guide",
+      "Coffee estate due diligence",
+      "Karnataka land records",
+      "Bhoomi RTC Pahani",
+    ],
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: canonical,
+      siteName: "Land in Coorg",
+      publishedTime: article.published_at,
+      modifiedTime: article.updated_at,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 800,
+          alt: guideImage.alt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
   };
 }
 
@@ -67,8 +104,25 @@ export default async function GuidePage({ params }: PageProps<"/guides/[slug]">)
           { name: article.title, url: siteUrl(`/guides/${article.slug}`) },
         ]),
         {
-          "@context": "https://schema.org", "@type": "Article", headline: article.title,
-          datePublished: article.published_at, dateModified: article.updated_at,
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: article.title,
+          description: article.excerpt ?? truncate(article.body, 200),
+          image: [siteUrl(getGuideImage(article.slug).src)],
+          datePublished: article.published_at,
+          dateModified: article.updated_at,
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": siteUrl(`/guides/${article.slug}`),
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Land in Coorg",
+            logo: {
+              "@type": "ImageObject",
+              url: siteUrl("/icon-512.png"),
+            },
+          },
           ...(article.author_name ? { author: { "@type": "Person", name: article.author_name } } : {}),
         },
       ])} />

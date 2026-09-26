@@ -18,7 +18,15 @@ type BrowserSupabase = ReturnType<typeof createBrowserSupabase>;
  *  into `.0`, `.1`, … when large). */
 const SESSION_COOKIE = /(?:^|;\s*)sb-[^=;]+-auth-token(?:\.\d+)?=/;
 
-function hasSessionCookie(): boolean {
+async function checkHasSession(): Promise<boolean> {
+  if (typeof window !== "undefined" && "cookieStore" in window) {
+    try {
+      const cookies = await (window as unknown as { cookieStore: { getAll: () => Promise<Array<{ name: string }>> } }).cookieStore.getAll();
+      return cookies.some((c) => SESSION_COOKIE.test(`${c.name}=`));
+    } catch {
+      // Fallback if cookieStore fails
+    }
+  }
   return typeof document !== "undefined" && SESSION_COOKIE.test(document.cookie);
 }
 
@@ -36,6 +44,7 @@ interface AccountState {
   status: "loading" | "anonymous" | "signed-in";
   account: ClientAccount | null;
   refresh: () => Promise<void>;
+  hasSaved: boolean;
   isSaved: (propertyId: string) => boolean | undefined;
   watchSaved: (propertyId: string) => void;
   setSaved: (propertyId: string, saved: boolean) => void;
@@ -48,14 +57,19 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [supabase, setSupabase] = useState<BrowserSupabase | null>(null);
   const [status, setStatus] = useState<AccountState["status"]>("loading");
   const [account, setAccount] = useState<ClientAccount | null>(null);
+  const savedSnapshot = useRef<Record<string, boolean>>({});
+  const [savedCount, setSavedCount] = useState(0);
   const [saved, setSavedMap] = useState<Record<string, boolean>>({});
   const pending = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!hasSessionCookie()) {
+    const hasSession = await checkHasSession();
+    if (!hasSession) {
       setAccount(null);
+      savedSnapshot.current = {};
       setSavedMap({});
+      setSavedCount(0);
       setStatus("anonymous");
       return;
     }
@@ -66,14 +80,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const userId = data?.claims?.sub;
     if (!userId) {
       setAccount(null);
+      savedSnapshot.current = {};
       setSavedMap({});
+      setSavedCount(0);
       setStatus("anonymous");
       return;
     }
-    const [{ data: profile }, { data: roles }] = await Promise.all([
+    const [{ data: profile }, { data: roles }, favorites] = await Promise.all([
       supabase.from("profiles").select("full_name, phone, is_suspended").eq("id", userId).maybeSingle(),
       supabase.from("user_roles").select("role_id").eq("user_id", userId),
+      supabase.from("favorites").select("property_id", { count: "exact", head: true }).eq("user_id", userId),
     ]);
+    if (!favorites.error) setSavedCount(favorites.count ?? 0);
     setAccount({
       id: userId,
       name: profile?.full_name ?? null,
@@ -85,7 +103,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const init = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(init);
   }, [refresh]);
 
   // Once the client is loaded (a session existed), follow its auth events.
@@ -103,9 +122,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const ids = [...pending.current];
     pending.current.clear();
     if (ids.length === 0 || !account || !supabase) return;
-    const { data } = await supabase.from("favorites").select("property_id").in("property_id", ids.slice(0, 200));
+    const { data, error } = await supabase.from("favorites").select("property_id").in("property_id", ids.slice(0, 200));
+    if (error) return;
     const found = new Set((data ?? []).map((r) => r.property_id));
-    setSavedMap((prev) => ({ ...prev, ...Object.fromEntries(ids.map((id) => [id, found.has(id)])) }));
+    const next = { ...savedSnapshot.current, ...Object.fromEntries(ids.filter((id) => savedSnapshot.current[id] === undefined).map((id) => [id, found.has(id)])) };
+    savedSnapshot.current = next;
+    setSavedMap(next);
   }, [account, supabase]);
 
   const watchSaved = useCallback(
@@ -128,11 +150,17 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       status,
       account,
       refresh,
+      hasSaved: status === "signed-in" && savedCount > 0,
       isSaved: (id) => (status === "signed-in" ? saved[id] : false),
       watchSaved,
-      setSaved: (id, value) => setSavedMap((prev) => ({ ...prev, [id]: value })),
+      setSaved: (id, value) => {
+        if (savedSnapshot.current[id] === value) return;
+        savedSnapshot.current = { ...savedSnapshot.current, [id]: value };
+        setSavedCount((count) => Math.max(0, count + (value ? 1 : -1)));
+        setSavedMap((prev) => ({ ...prev, [id]: value }));
+      },
     }),
-    [account, refresh, saved, status, watchSaved],
+    [account, refresh, saved, savedCount, status, watchSaved],
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

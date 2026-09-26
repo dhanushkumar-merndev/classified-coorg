@@ -46,3 +46,11 @@
   - `suntikoppa.webp`: Plantation highway road with silver oak canopy and coffee bushes.
   - `boikere.webp`: Quiet ancestral coffee plantation slopes in morning mist.
   - `napoklu.webp`: Traditional Kodava Ainmane heritage and Western Ghats countryside.
+
+## Demo video
+
+- Whitewater Falls — Nantahala National Forest, North Carolina, by **Nature In 4K By: Paul King**.
+- Original: https://www.youtube.com/watch?v=fUkJZrdiVFE
+- Source: https://commons.wikimedia.org/wiki/File:Whitewater_Falls_-_Nantahala_National_Forest,_North_Carolina_--4K_Drone_--_DJI_Mavic_Pro_2._Footage.webm
+- License: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- Changes: shortened to approximately two minutes and transcoded into adaptive HLS renditions. Used as a playback demonstration, not footage of the listed Coorg property.

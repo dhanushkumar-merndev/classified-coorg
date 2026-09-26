@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart, Menu, Plus, Search } from "lucide-react";
 import { useState } from "react";
+import { useAccount } from "@/components/providers/account-provider";
 import { AccountMenu } from "@/components/site/account-menu";
 import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const NAV = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { hasSaved } = useAccount();
   const [open, setOpen] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -53,7 +55,7 @@ export function SiteHeader() {
             <Link href="/properties"><Search /></Link>
           </Button>
           <Button asChild variant="ghost" size="icon" className="hidden lg:inline-flex" aria-label="Saved properties" title="Saved">
-            <Link href="/dashboard/saved" prefetch={false}><Heart /></Link>
+            <Link href="/dashboard/saved" prefetch={false}><Heart className={cn("transition-colors", hasSaved && "fill-red-600 text-red-600")} /></Link>
           </Button>
           <Button asChild className="hidden sm:inline-flex">
             <Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post a property</Link>
@@ -71,7 +73,7 @@ export function SiteHeader() {
                     {item.label}
                   </Link>
                 ))}
-                <Link href="/dashboard/saved" prefetch={false} className="rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted">Saved</Link>
+                <Link href="/dashboard/saved" prefetch={false} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted"><Heart aria-hidden="true" className={cn("size-5 transition-colors", hasSaved && "fill-red-600 text-red-600")} />Saved</Link>
                 <Separator className="my-2" />
                 <Button asChild size="lg"><Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post property</Link></Button>
               </nav>

@@ -32,7 +32,7 @@ export const VIDEO_LIMITS = {
   /** Container durations are rounded; this much over the limit still passes. */
   durationToleranceSeconds: 2,
   /** Limits on the short side, after rotation (portrait 1080×1920 is 1080p).
-   *  4K sources are accepted and delivered at up to 1080p. */
+   *  4K sources are accepted and delivered at up to 2160p. */
   maxShortSide: 2160,
   minShortSide: 240,
   maxLongSide: 4096,
@@ -45,6 +45,7 @@ export const VIDEO_LIMITS = {
 /** HLS quality ladder, best first. Rungs above the source's short side are
  *  skipped (never upscaled). */
 export const VIDEO_LADDER = [
+  { name: "2160p", shortSide: 2160, maxrateKbps: 14000 },
   { name: "1080p", shortSide: 1080, maxrateKbps: 5000 },
   { name: "720p", shortSide: 720, maxrateKbps: 2800 },
   { name: "360p", shortSide: 360, maxrateKbps: 800 },
@@ -61,6 +62,8 @@ export const VIDEO_TIMING = {
   chunkSeconds: 24,
   /** For sources above 1080p30 (4K, 60 fps), which cost more to decode. */
   heavyChunkSeconds: 12,
+  /** Native 4K output uses one segment per job to bound CPU work. */
+  uhdChunkSeconds: 4,
   segmentSeconds: 4,
   /** ffmpeg is stopped here, leaving time to upload and record the result. */
   encodeTimeoutSeconds: 200,

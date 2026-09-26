@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Play } from "lucide-react";
 import { VerifiedBadge } from "@/components/property/badges";
 import { PropertyImage } from "@/components/property/property-image";
 import { SaveButton } from "@/components/property/save-button";
@@ -30,6 +30,15 @@ export function PropertyCard({ listing, priority = false }: { listing: ListingCa
           className="transition-transform duration-500 ease-out group-hover:scale-[1.03]"
         />
         <div className="absolute left-3 top-3"><VerifiedBadge /></div>
+        {listing.hasVideo && (
+          <Link
+            href={`${propertyPath(listing.slug)}#video-tour`}
+            aria-label={`Watch video: ${listing.title}`}
+            className="absolute bottom-3 left-3 z-10 inline-flex min-h-11 items-center gap-2 rounded-md bg-black/75 px-3 text-sm font-medium text-white hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <Play className="size-4" aria-hidden="true" /> Watch video
+          </Link>
+        )}
         <div className="absolute right-3 top-3 z-10"><SaveButton propertyId={listing.id} title={listing.title} /></div>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-4">

@@ -44,7 +44,8 @@ function formatDuration(seconds: number): string {
 
 /** 1080×1920 portrait is "1080p": the short side names the quality. */
 function levelLabel(width: number, height: number): string {
-  return `${Math.min(width, height)}p`;
+  const short = Math.min(width, height);
+  return short >= 2160 ? "2160p (4K)" : `${short}p`;
 }
 
 export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, className }: VideoTourProps) {
@@ -140,7 +141,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     if (hlsRef.current) hlsRef.current.currentLevel = Number(value);
   }
 
-  const hdLabel = shortSide && shortSide >= 1080 ? "Full HD" : shortSide && shortSide >= 720 ? "HD" : null;
+  const hdLabel = levels.some((level) => level.label === "2160p (4K)") ? "4K" : shortSide && shortSide >= 1080 ? "Full HD" : shortSide && shortSide >= 720 ? "HD" : null;
   const autoLabel = choice === AUTO && current ? `Auto · ${current}` : choice === AUTO ? "Auto" : levels.find((l) => String(l.index) === choice)?.label;
 
   return (

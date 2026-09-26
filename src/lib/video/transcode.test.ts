@@ -47,6 +47,14 @@ describe("probe results", () => {
 });
 
 describe("planning", () => {
+  test("4K sources include native 2160p in short processing jobs", () => {
+    const source = phone({ width: 3840, height: 2160, durationSeconds: 120 });
+    expect(planLadder(source).map(r => r.name)).toEqual(["2160p", "1080p", "720p", "360p"]);
+    const jobs = planJobs(source).filter(j => j.rendition === "2160p");
+    expect(jobs).toHaveLength(30);
+    expect(jobs[0]!.params).toMatchObject({ width: 3840, height: 2160, start: 0, length: 4 });
+    expect(planLadder(phone({ width: 2160, height: 3840 }))[0]).toMatchObject({ name: "2160p", width: 2160, height: 3840 });
+  });
   test("ladder never upscales and keeps portrait orientation", () => {
     expect(planLadder(phone()).map((r) => `${r.name} ${r.width}x${r.height}`)).toEqual(["1080p 1920x1080", "720p 1280x720", "360p 640x360"]);
     expect(planLadder(phone({ width: 1080, height: 1920 })).map((r) => `${r.width}x${r.height}`)).toEqual(["1080x1920", "720x1280", "360x640"]);

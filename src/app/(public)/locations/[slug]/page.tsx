@@ -9,8 +9,10 @@ import { ResultsPagination } from "@/components/search/results-pagination";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { breadcrumbLd, jsonLd } from "@/lib/seo";
-import { siteUrl } from "@/lib/site";
+import { getLocationImage } from "@/lib/locations";
+import { breadcrumbLd, itemListLd, jsonLd, placeLd } from "@/lib/seo";
+import { mediaUrl, propertyPath, siteUrl } from "@/lib/site";
+import { PROPERTY_TYPE_LABELS } from "@/lib/labels";
 import { getLocationCounts, getLocations, getPublishedArticles, searchListings } from "@/repositories/public-listings";
 import { parseSearchParams } from "@/schemas/search.schema";
 
@@ -30,16 +32,56 @@ export async function generateMetadata({ params }: PageProps<"/locations/[slug]"
   const { slug } = await params;
   const loc = (await getLocations()).find((l) => l.slug === slug);
   if (!loc) return { title: "Location not found", robots: { index: false } };
+  const locImg = getLocationImage(loc.slug);
+  const title = loc.seo_title ?? `Land & Coffee Estates for Sale in ${loc.name}, Coorg`;
+  const description =
+    loc.seo_description ??
+    `Verified coffee estates, agricultural farmland, residential plots, and homestay land for sale in ${loc.name}, Kodagu. Verified titles, Bhoomi RTC, direct owner contacts.`;
+  const canonical = `/locations/${loc.slug}`;
+
   return {
-    title: loc.seo_title ?? `Land and property for sale in ${loc.name}, Coorg`,
-    description: loc.seo_description ?? `Verified coffee estates, farm land and plots for sale in ${loc.name}, Kodagu.`,
-    alternates: { canonical: `/locations/${loc.slug}` },
+    title,
+    description,
+    keywords: [
+      `${loc.name} property for sale`,
+      `${loc.name} coffee estate for sale`,
+      `land for sale in ${loc.name} Coorg`,
+      `farmland in ${loc.name} Kodagu`,
+      `plots for sale in ${loc.name}`,
+      `commercial land in ${loc.name}`,
+      `homestay property in ${loc.name}`,
+      `real estate ${loc.name} Coorg`,
+    ],
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: siteUrl(canonical),
+      siteName: "Land in Coorg",
+      locale: "en_IN",
+      type: "website",
+      images: [
+        {
+          url: siteUrl(locImg.src),
+          width: 1200,
+          height: 630,
+          alt: locImg.alt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [siteUrl(locImg.src)],
+    },
   };
 }
 
 export default async function LocationPage({ params }: PageProps<"/locations/[slug]">) {
   const { slug } = await params;
   const location = await findLocation(slug);
+  const locImg = getLocationImage(location.slug);
   const [locations, counts, results, guides] = await Promise.all([
     getLocations(),
     getLocationCounts(),
@@ -51,11 +93,37 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
 
   return (
     <div className="wrap py-10">
-      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
-        { name: "Home", url: siteUrl("/") },
-        { name: "Locations", url: siteUrl("/locations") },
-        { name: location.name, url: siteUrl(`/locations/${location.slug}`) },
-      ]))} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
+          { name: "Home", url: siteUrl("/") },
+          { name: "Locations", url: siteUrl("/locations") },
+          { name: location.name, url: siteUrl(`/locations/${location.slug}`) },
+        ]))}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(placeLd({
+          name: `${location.name}, Coorg`,
+          description: location.intro ?? `Land, coffee estates and properties for sale in ${location.name}, Kodagu.`,
+          url: siteUrl(`/locations/${location.slug}`),
+          image: siteUrl(locImg.src),
+          containedInPlace: "Kodagu District, Karnataka, India",
+        }))}
+      />
+      {results.items.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={jsonLd(itemListLd(
+            results.items.map((item) => ({
+              name: item.title,
+              url: siteUrl(propertyPath(item.slug)),
+              image: item.coverId ? siteUrl(mediaUrl(item.coverId, "full")) : undefined,
+              description: `${PROPERTY_TYPE_LABELS[item.property_type] ?? "Property"} in ${location.name}, Coorg`,
+            }))
+          ))}
+        />
+      )}
       <Breadcrumb className="mb-6">
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>

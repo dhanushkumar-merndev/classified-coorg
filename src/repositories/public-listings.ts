@@ -41,6 +41,7 @@ export interface ListingCard {
   published_at: string;
   featured: boolean;
   location: { name: string; slug: string } | null;
+  hasVideo?: boolean;
   coverId: string | null;
   coverAlt: string | null;
 }
@@ -50,6 +51,20 @@ export type RawCard = Omit<ListingCard, "coverId" | "coverAlt"> & { cover: Array
 export function toCard(row: RawCard): ListingCard {
   const { cover, ...rest } = row;
   return { ...rest, coverId: cover?.[0]?.id ?? null, coverAlt: cover?.[0]?.alt_text ?? null };
+}
+
+async function cardsWithVideos(rows: RawCard[]): Promise<ListingCard[]> {
+  const cards = rows.map(toCard);
+  if (!cards.length) return cards;
+  const { data, error } = await createPublicClient().from("property_videos")
+    .select("property_id").in("property_id", cards.map((card) => card.id))
+    .eq("state", "ready").is("removed_at", null);
+  if (error) {
+    logger.warn("cards.video_lookup_failed", { code: error.code });
+    return cards;
+  }
+  const ids = new Set((data ?? []).map((video) => video.property_id));
+  return cards.map((card) => ({ ...card, hasVideo: ids.has(card.id) }));
 }
 
 export interface LocationRow {
@@ -141,14 +156,14 @@ async function runSearch(filters: SearchFilters): Promise<SearchResult> {
   }
   const total = count ?? 0;
   return {
-    items: ((data ?? []) as unknown as RawCard[]).map(toCard),
+    items: await cardsWithVideos((data ?? []) as unknown as RawCard[]),
     total,
     page,
     pageCount: Math.min(Math.ceil(total / PAGE_SIZE), MAX_PAGE),
   };
 }
 
-export const searchListings = unstable_cache(runSearch, ["public-search"], {
+export const searchListings = unstable_cache(runSearch, ["public-search-video-v1"], {
   tags: [CACHE_TAGS.listings],
   revalidate: PUBLIC_TTL_SECONDS,
 });
@@ -169,9 +184,9 @@ export const getFeaturedListings = unstable_cache(
       .order("id", { ascending: false })
       .limit(limit);
     if (error) throw error;
-    return ((data ?? []) as unknown as RawCard[]).map(toCard);
+    return cardsWithVideos((data ?? []) as unknown as RawCard[]);
   },
-  ["public-featured"],
+  ["public-featured-video-v1"],
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
 );
 
@@ -292,7 +307,7 @@ export const getSimilarListings = unstable_cache(
     const { data, error } = await query.order("published_at", { ascending: false }).order("id", { ascending: false }).limit(SIMILAR_COUNT);
     if (error) throw error;
     const similar = (data ?? []) as unknown as RawCard[];
-    if (similar.length >= SIMILAR_COUNT) return similar.map(toCard);
+    if (similar.length >= SIMILAR_COUNT) return cardsWithVideos(similar);
 
     // Too few matches: top up with the newest listings so the grid stays full.
     // At most SIMILAR_COUNT ids are excluded, so this stays a bounded index read.
@@ -303,9 +318,9 @@ export const getSimilarListings = unstable_cache(
       .order("id", { ascending: false })
       .limit(SIMILAR_COUNT - similar.length);
     if (recentError) throw recentError;
-    return [...similar, ...((recent ?? []) as unknown as RawCard[])].map(toCard);
+    return cardsWithVideos([...similar, ...((recent ?? []) as unknown as RawCard[])]);
   },
-  ["public-similar"],
+  ["public-similar-video-v1"],
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
 );
 

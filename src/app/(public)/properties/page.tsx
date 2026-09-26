@@ -9,6 +9,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { formatCount } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS } from "@/lib/labels";
+import { getLocationImage } from "@/lib/locations";
+import { getPropertyTypeImage } from "@/lib/property-types";
+import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
+import { mediaUrl, propertyPath, siteUrl } from "@/lib/site";
 import { getLocations, searchListings } from "@/repositories/public-listings";
 import { activeFilterCount, parseSearchParams, toQueryString } from "@/schemas/search.schema";
 
@@ -20,14 +24,60 @@ export async function generateMetadata({ searchParams }: PageProps<"/properties"
   const locations = await getLocations();
   const loc = locations.find((l) => l.slug === filters.location);
   const type = filters.type ? PROPERTY_TYPE_LABELS[filters.type] : null;
-  const title = [type ?? "Properties", "for sale in", loc ? `${loc.name}, Coorg` : "Coorg"].join(" ");
+  const baseTitle = [type ?? "Land & Properties", "for Sale in", loc ? `${loc.name}, Coorg` : "Coorg (Kodagu)"].join(" ");
+  const title = filters.page > 1 ? `${baseTitle} — Page ${filters.page}` : baseTitle;
+  const description = `Browse verified ${type?.toLowerCase() ?? "coffee estates, agricultural land, plots and houses"} in ${loc?.name ? `${loc.name}, Coorg` : "Coorg (Kodagu)"}. Every listing verified with clear titles and RTC documentation.`;
   const simple = activeFilterCount(filters) <= 1 && !filters.q && (filters.location || filters.type || activeFilterCount(filters) === 0);
   const canonical = simple ? `/properties${toQueryString({ location: filters.location, type: filters.type, page: filters.page })}` : "/properties";
+
+  let ogImage = "/images/hero-coorg-landscape.webp";
+  let ogAlt = "Properties and estates for sale in Coorg";
+  if (filters.type) {
+    const tImg = getPropertyTypeImage(filters.type);
+    ogImage = tImg.src;
+    ogAlt = tImg.alt;
+  } else if (filters.location) {
+    const lImg = getLocationImage(filters.location);
+    ogImage = lImg.src;
+    ogAlt = lImg.alt;
+  }
+
   return {
-    title: filters.page > 1 ? `${title} — page ${filters.page}` : title,
-    description: `Browse verified ${type?.toLowerCase() ?? "land, estates and plots"} in ${loc?.name ?? "Coorg (Kodagu)"}. Every listing is reviewed before publication.`,
+    title,
+    description,
+    keywords: [
+      type ? `${type.toLowerCase()} in Coorg` : "properties in Coorg",
+      loc ? `property in ${loc.name}` : "land for sale in Coorg",
+      "coffee estate for sale in Coorg",
+      "buy land in Kodagu",
+      "plots for sale in Coorg",
+      "agricultural land Coorg",
+      "verified property Coorg",
+    ],
     alternates: { canonical },
     robots: simple ? undefined : { index: false, follow: true },
+    openGraph: {
+      title,
+      description,
+      url: siteUrl(canonical),
+      siteName: "Land in Coorg",
+      locale: "en_IN",
+      type: "website",
+      images: [
+        {
+          url: siteUrl(ogImage),
+          width: 1200,
+          height: 630,
+          alt: ogAlt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [siteUrl(ogImage)],
+    },
   };
 }
 
@@ -40,6 +90,27 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
 
   return (
     <div className="wrap py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
+          { name: "Home", url: siteUrl("/") },
+          { name: "Properties", url: siteUrl("/properties") },
+          ...(loc ? [{ name: loc.name, url: siteUrl(`/properties?location=${loc.slug}`) }] : []),
+        ]))}
+      />
+      {result.items.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={jsonLd(itemListLd(
+            result.items.map((item) => ({
+              name: item.title,
+              url: siteUrl(propertyPath(item.slug)),
+              image: item.coverId ? siteUrl(mediaUrl(item.coverId, "full")) : undefined,
+              description: `${PROPERTY_TYPE_LABELS[item.property_type] ?? "Property"} in ${item.location?.name ?? "Kodagu"}, Coorg`,
+            }))
+          ))}
+        />
+      )}
       <Breadcrumb className="mb-5">
         <BreadcrumbList>
           <BreadcrumbItem><BreadcrumbLink href="/">Home</BreadcrumbLink></BreadcrumbItem>
@@ -53,9 +124,9 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 id="results-heading" className="font-display text-2xl leading-tight md:text-3xl">{heading}</h1>
-              <p className="mt-1 text-sm text-muted-foreground" aria-live="polite">
+              <h2 className="mt-1 text-sm font-normal text-muted-foreground" aria-live="polite">
                 {formatCount(result.total)} verified {result.total === 1 ? "listing" : "listings"}
-              </p>
+              </h2>
             </div>
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <MobileFilters filters={filters} locations={towns} />

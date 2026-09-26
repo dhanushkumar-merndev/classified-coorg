@@ -16,7 +16,7 @@ function buildCsp(extra: { script?: string; connect?: string; frame?: string; st
     `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} ${extra.script ?? ""}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${extra.style ?? ""}`,
     "font-src 'self' https://fonts.gstatic.com data:",
-    `img-src 'self' data: blob: ${extra.img ?? ""}`,
+    `img-src 'self' data: blob: https://api.dicebear.com ${extra.img ?? ""}`,
     `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} ${TIGRIS_HOSTS} ${extra.connect ?? ""}`,
     `media-src 'self' blob: ${TIGRIS_HOSTS}`,
     ...(extra.frame ? [`frame-src ${extra.frame}`] : []),
@@ -46,6 +46,10 @@ const loginCsp = buildCsp({
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
+    // Reuse visited page segments during client navigation for 30 minutes.
+    // Server-action invalidation and router.refresh still clear cached data.
+    // This is tab memory, not persistent storage or an authorization cache.
+    staleTimes: { static: 1800, dynamic: 1800 },
     // Tailwind's CSS is small (~22 KiB, ~5 KiB gzipped): inline it into the
     // HTML so first paint does not wait for a render-blocking stylesheet.
     inlineCss: true,
@@ -73,7 +77,8 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }] : []),
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          ...(isProd ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : []),
         ],
       },
       // Later entries override earlier ones for the same header key.

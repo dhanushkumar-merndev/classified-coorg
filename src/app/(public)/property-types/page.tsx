@@ -5,17 +5,73 @@ import { ArrowRight } from "lucide-react";
 import { TypeIcon } from "@/components/property/type-icon";
 import { PageIntro } from "@/components/site/page-intro";
 import { PROPERTY_TYPE_BLURBS, PROPERTY_TYPE_LABELS, toSlug } from "@/lib/labels";
+import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
+import { siteUrl } from "@/lib/site";
 import { getPropertyTypeImage } from "@/lib/property-types";
 
 export const metadata: Metadata = {
-  title: "Property types",
-  description: "Coffee estates, agricultural and farm land, plots, homes and homestays across Coorg.",
+  title: "Property Types in Coorg | Coffee Estates, Farmland, Plots & Homestays",
+  description:
+    "Browse verified listings by property category across Coorg (Kodagu): Coffee Estates, Agricultural Land, Farm Land, Residential Plots, Commercial Land, Houses & Homestays.",
+  keywords: [
+    "Coorg property types",
+    "coffee estates Coorg",
+    "agricultural land Kodagu",
+    "farmland in Coorg",
+    "residential plots Madikeri",
+    "commercial land Coorg",
+    "resorts homestays for sale Coorg",
+    "buy plantation Coorg",
+    "Kodagu real estate categories",
+  ],
   alternates: { canonical: "/property-types" },
+  openGraph: {
+    title: "Property Types in Coorg | Coffee Estates, Farmland, Plots & Homestays",
+    description:
+      "Browse verified listings by property category across Coorg (Kodagu): Coffee Estates, Agricultural Land, Farm Land, Residential Plots, Commercial Land, and Homestays.",
+    url: siteUrl("/property-types"),
+    siteName: "Land in Coorg",
+    locale: "en_IN",
+    type: "website",
+    images: [
+      {
+        url: siteUrl("/images/property-types/coffee-estate.webp"),
+        width: 1200,
+        height: 630,
+        alt: "Coffee estates and properties in Coorg, Karnataka",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Property Types in Coorg | Coffee Estates, Farmland, Plots & Homestays",
+    description:
+      "Browse verified listings by property category across Coorg (Kodagu): Coffee Estates, Farmland, Plots & Homestays.",
+    images: [siteUrl("/images/property-types/coffee-estate.webp")],
+  },
 };
 
 export default function PropertyTypesPage() {
   return (
     <div className="wrap py-12">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(breadcrumbLd([
+          { name: "Home", url: siteUrl("/") },
+          { name: "Property Types", url: siteUrl("/property-types") },
+        ]))}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd(itemListLd(
+          Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({
+            name: `${label} for Sale in Coorg`,
+            url: siteUrl(`/properties?type=${toSlug(value)}`),
+            image: siteUrl(getPropertyTypeImage(value).src),
+            description: PROPERTY_TYPE_BLURBS[value],
+          }))
+        ))}
+      />
       <PageIntro title="Property types" lede="From working coffee estates to plots near town." />
       <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="list">
         {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => {

@@ -39,21 +39,51 @@ export async function generateMetadata({ params }: PageProps<"/property/[slug]">
   if (result.kind !== "found") return { title: "Property not found", robots: { index: false } };
   const l = result.listing;
   const cover = l.media.find((m) => m.is_cover) ?? l.media[0];
-  const title = `${l.title} — ${formatPriceShort(l.price)}`;
+  const pType = PROPERTY_TYPE_LABELS[l.property_type] ?? "Property";
+  const locName = l.location?.name ?? "Coorg";
+  const title = `${l.title} — ${formatPriceShort(l.price)} | ${pType} in ${locName}`;
   const description = truncate(
-    `${PROPERTY_TYPE_LABELS[l.property_type]} of ${formatArea(l.area_value, l.area_unit)} in ${l.location?.name ?? "Coorg"}. ${l.description ?? ""}`,
+    `Verified ${pType.toLowerCase()} of ${formatArea(l.area_value, l.area_unit)} in ${locName}, Coorg. ${l.description ?? ""}`,
     160,
   );
+  const imageUrl = cover ? siteUrl(mediaUrl(cover.id)) : siteUrl("/images/hero-coorg-landscape.webp");
+  const canonical = siteUrl(propertyPath(l.slug));
+
   return {
     title,
     description,
-    alternates: { canonical: propertyPath(l.slug) },
+    keywords: [
+      l.title,
+      `${pType} in ${locName}`,
+      `${pType} for sale in Coorg`,
+      `Land in ${locName}`,
+      "Coorg real estate",
+      "Kodagu property",
+      "Buy land in Coorg",
+    ],
+    alternates: { canonical },
     openGraph: {
-      type: "article",
+      type: "website",
       title,
       description,
-      url: propertyPath(l.slug),
-      images: cover ? [{ url: mediaUrl(cover.id), width: cover.width, height: cover.height, alt: cover.alt_text ?? l.title }] : undefined,
+      url: canonical,
+      siteName: "Land in Coorg",
+      images: cover
+        ? [
+            {
+              url: imageUrl,
+              width: cover.width ?? 1200,
+              height: cover.height ?? 800,
+              alt: cover.alt_text ?? l.title,
+            },
+          ]
+        : [{ url: siteUrl("/images/hero-coorg-landscape.webp"), width: 1200, height: 800 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
     },
   };
 }
@@ -252,7 +282,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={`${id}-heading`} className="space-y-4">
+    <section id={id} aria-labelledby={`${id}-heading`} className="scroll-mt-24 space-y-4">
       <h2 id={`${id}-heading`} className="text-lg font-semibold">{title}</h2>
       {children}
     </section>

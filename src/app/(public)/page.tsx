@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Building2, ChevronRight, MapPin } from "lucide-react";
@@ -6,18 +7,27 @@ import { PropertyGrid } from "@/components/property/property-card";
 import { TypeIcon } from "@/components/property/type-icon";
 import { HeroSearch } from "@/components/search/hero-search";
 import { Button } from "@/components/ui/button";
+import { FaqSection } from "@/components/site/faq-section";
 import { MobileCollapsibleList } from "@/components/site/mobile-collapsible-list";
 import { SectionHeading } from "@/components/site/page-intro";
 import { RotatingWords } from "@/components/site/rotating-words";
 import { formatDate } from "@/lib/format";
 import { getGuideImage } from "@/lib/guides";
 import { PROPERTY_TYPE_LABELS, toSlug } from "@/lib/labels";
+import { jsonLd, organizationLd, websiteLd } from "@/lib/seo";
 import {
   getFeaturedListings, getLocationCounts, getLocations, getPublishedArticles, searchListings,
 } from "@/repositories/public-listings";
 import { parseSearchParams } from "@/schemas/search.schema";
 
 export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "Land in Coorg — Verified Coffee Estates, Farmland & Plots for Sale",
+  description:
+    "Explore 100+ verified coffee estates, agricultural farmland, residential plots, and plantation bungalows for sale across Coorg (Kodagu), Karnataka. Title and RTC verified.",
+  alternates: { canonical: "/" },
+};
 
 const POPULAR = [
   { href: "/properties?location=madikeri", label: "Madikeri" },
@@ -41,6 +51,10 @@ export default async function HomePage() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={jsonLd([websiteLd(), organizationLd()])}
+      />
       <section aria-labelledby="hero-heading" className="relative isolate overflow-hidden bg-[#172c22] text-white">
         <Image
           src="/images/hero-coorg-landscape.webp"
@@ -178,6 +192,8 @@ export default async function HomePage() {
           </ul>
         </section>
       )}
+
+      <FaqSection className="wrap pb-16" />
 
       <section className="wrap pb-20">
         <div className="flex flex-col items-start justify-between gap-6 rounded-md bg-primary px-6 py-10 text-primary-foreground md:flex-row md:items-center md:px-10">

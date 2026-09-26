@@ -567,7 +567,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
           <Card><CardContent className="space-y-4 pt-6">
             <p className="text-sm text-muted-foreground">
               Optional. One video tour of up to 2 minutes (MP4, MOV or WebM, up to 500 MB, up to 4K). We convert it to
-              1080p, 720p and 360p so buyers get fast, smooth playback on any connection.
+              2160p (4K), 1080p, 720p and 360p, depending on the original resolution, so buyers get fast, smooth playback on any connection.
             </p>
 
             {video?.state === "ready" && (
