@@ -23,7 +23,7 @@ export default async function SavedPage({ searchParams }: PageProps<"/dashboard/
           action={{ href: "/properties", label: "Browse properties" }} />
       ) : (
         <>
-          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" role="list">
+          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" role="list">
             {saved.items.map((row) => (
               <li key={row.property_id}>
                 {row.property

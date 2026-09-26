@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { TypeIcon } from "@/components/property/type-icon";
+import { GridColumnsList, GridColumnsProvider, GridColumnsSelect } from "@/components/property/grid-columns";
 import { PageIntro } from "@/components/site/page-intro";
 import { PROPERTY_TYPE_BLURBS, PROPERTY_TYPE_LABELS, toSlug } from "@/lib/labels";
 import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
@@ -72,8 +73,9 @@ export default function PropertyTypesPage() {
           }))
         ))}
       />
-      <PageIntro title="Property types" lede="From working coffee estates to plots near town." />
-      <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="list">
+      <GridColumnsProvider scope="types">
+      <PageIntro title="Property types" lede="From working coffee estates to plots near town." actions={<GridColumnsSelect />} />
+      <GridColumnsList className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => {
           const img = getPropertyTypeImage(value);
           return (
@@ -112,7 +114,8 @@ export default function PropertyTypesPage() {
             </li>
           );
         })}
-      </ul>
+      </GridColumnsList>
+      </GridColumnsProvider>
     </div>
   );
 }

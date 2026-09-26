@@ -291,7 +291,7 @@ export const getListingBySlug = unstable_cache(
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
 );
 
-const SIMILAR_COUNT = 6; // two full rows of the 3-column grid
+const SIMILAR_COUNT = 8; // two full rows of the 4-column grid
 
 export const getSimilarListings = unstable_cache(
   async (listingId: string, locationId: string | null, propertyType: string): Promise<ListingCard[]> => {

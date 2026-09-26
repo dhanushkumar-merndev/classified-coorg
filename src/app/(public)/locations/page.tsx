@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
+import { GridColumnsList, GridColumnsProvider, GridColumnsSelect } from "@/components/property/grid-columns";
 import { PageIntro } from "@/components/site/page-intro";
 import { getLocationImage } from "@/lib/locations";
 import { breadcrumbLd, itemListLd, jsonLd } from "@/lib/seo";
@@ -76,8 +77,9 @@ export default async function LocationsPage() {
           }))
         ))}
       />
-      <PageIntro title="Locations" lede="Pick a town to see its verified listings across Coorg." />
-      <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4" role="list">
+      <GridColumnsProvider scope="locations">
+      <PageIntro title="Locations" lede="Pick a town to see its verified listings across Coorg." actions={<GridColumnsSelect />} />
+      <GridColumnsList className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {towns.map((l) => {
           const img = getLocationImage(l.slug);
           const count = counts[l.id] ?? 0;
@@ -118,7 +120,8 @@ export default async function LocationsPage() {
             </li>
           );
         })}
-      </ul>
+      </GridColumnsList>
+      </GridColumnsProvider>
     </div>
   );
 }

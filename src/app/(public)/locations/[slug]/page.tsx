@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { PageIntro } from "@/components/site/page-intro";
 import { EmptyState } from "@/components/common/empty-state";
+import { GridColumnsProvider, GridColumnsSelect } from "@/components/property/grid-columns";
 import { PropertyGrid } from "@/components/property/property-card";
 import { ResultsPagination } from "@/components/search/results-pagination";
 import {
@@ -137,14 +138,18 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       <PageIntro title={`Property for sale in ${location.name}`}
         lede={<span className="line-clamp-3 whitespace-pre-line">{location.intro ?? `Verified listings in ${location.name}, Kodagu district.`}</span>} />
 
+      <GridColumnsProvider scope="location">
       <section aria-labelledby="loc-results" className="mt-8 space-y-5">
         <div className="flex items-end justify-between">
           <h2 id="loc-results" className="text-sm font-medium text-muted-foreground">{results.total} verified {results.total === 1 ? "listing" : "listings"}</h2>
-          {results.total > 0 && <Link href={`/properties?location=${location.slug}`} className="text-sm font-medium text-primary hover:underline">Filter these results</Link>}
+          <div className="flex items-center gap-4">
+            {results.total > 0 && <Link href={`/properties?location=${location.slug}`} className="text-sm font-medium text-primary hover:underline">Filter these results</Link>}
+            <GridColumnsSelect />
+          </div>
         </div>
         {results.items.length > 0 ? (
           <>
-            <PropertyGrid listings={results.items} priorityCount={3} />
+            <PropertyGrid listings={results.items} priorityCount={4} />
             <ResultsPagination page={1} pageCount={results.pageCount} hrefFor={(p) => `/properties?location=${location.slug}${p > 1 ? `&page=${p}` : ""}`} />
           </>
         ) : (
@@ -153,6 +158,7 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
             action={{ href: "/properties", label: "Browse all of Coorg" }} />
         )}
       </section>
+      </GridColumnsProvider>
 
       {(nearby.length > 0 || children.length > 0) && (
         <section aria-labelledby="nearby" className="mt-16 space-y-4">
@@ -172,7 +178,7 @@ export default async function LocationPage({ params }: PageProps<"/locations/[sl
       {guides.length > 0 && (
         <section aria-labelledby="loc-guides" className="mt-12 space-y-4">
           <h2 id="loc-guides" className="font-display text-xl">Buying guides</h2>
-          <ul className="grid gap-3 md:grid-cols-3">
+          <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             {guides.map((g) => (
               <li key={g.id}>
                 <Link href={`/guides/${g.slug}`} className="block h-full rounded-md border bg-card p-4 text-sm font-medium transition-colors hover:border-primary hover:text-primary">{g.title}</Link>

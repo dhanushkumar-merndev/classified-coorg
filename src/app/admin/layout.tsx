@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </p>
         </div>
       </aside>
-      <main id="main" className="min-w-0 flex-1 bg-background px-5 py-8 sm:px-8 lg:px-12 lg:py-12"><div className="mx-auto max-w-[73.75rem]">{children}</div></main>
+      <main id="main" className="min-w-0 flex-1 bg-background px-5 py-8 sm:px-8 lg:px-12 lg:py-12"><div className="mx-auto max-w-[90rem]">{children}</div></main>
     </div>
   );
 }

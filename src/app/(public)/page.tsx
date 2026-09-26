@@ -43,9 +43,9 @@ export default async function HomePage() {
   const [locations, counts, featured, recent, articles] = await Promise.all([
     getLocations(),
     getLocationCounts(),
-    getFeaturedListings(6),
+    getFeaturedListings(8),
     searchListings(parseSearchParams({})),
-    getPublishedArticles(3),
+    getPublishedArticles(4),
   ]);
   const towns = locations.filter((l) => l.parent_id !== null);
 
@@ -68,7 +68,8 @@ export default async function HomePage() {
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(12,29,22,0.55)_0%,rgba(12,29,22,0.2)_55%,rgba(12,29,22,0.06)_100%)]" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(12,29,22,0.35),transparent_55%)]" />
 
-        <div className="wrap relative flex min-h-[37.5rem] flex-col justify-center py-12 md:min-h-[38.75rem] md:py-16">
+        {/* Hero keeps the original narrower measure; other sections use the wider wrap. */}
+        <div className="relative mx-auto flex w-full max-w-[77.5rem] min-h-[37.5rem] px-5 sm:px-8 flex-col justify-center py-12 md:min-h-[38.75rem] md:py-16">
           <div className="max-w-2xl">
             <p className="text-xs font-medium tracking-[0.18em] text-white/85">LAND & HOMES IN KODAGU</p>
             <h1 id="hero-heading" className="mt-5 text-[2.75rem] leading-[1.08] font-medium tracking-[-0.035em] sm:text-6xl lg:text-[4.25rem]">
@@ -109,14 +110,14 @@ export default async function HomePage() {
       {featured.length > 0 && (
         <section className="wrap pt-16">
           <SectionHeading title="Featured" aside={<MoreLink href="/properties">View all</MoreLink>} />
-          <PropertyGrid listings={featured} priorityCount={3} collapsibleOnMobile={true} />
+          <PropertyGrid listings={featured} priorityCount={4} collapsibleOnMobile={true} />
         </section>
       )}
 
       <section className="wrap py-16">
         <SectionHeading title="Recently verified" aside={<MoreLink href="/properties">View all</MoreLink>} />
         {recent.items.length > 0 ? (
-          <PropertyGrid listings={recent.items.slice(0, 6)} priorityCount={featured.length ? 0 : 3} collapsibleOnMobile={true} />
+          <PropertyGrid listings={recent.items.slice(0, 8)} priorityCount={featured.length ? 0 : 4} collapsibleOnMobile={true} />
         ) : (
           <EmptyState icon={Building2} title="The first listings are in review"
             description="Verified properties appear here as soon as our team approves them."
@@ -162,7 +163,7 @@ export default async function HomePage() {
       {articles.length > 0 && (
         <section className="wrap pb-16">
           <SectionHeading title="Before you buy" aside={<MoreLink href="/guides">All guides</MoreLink>} />
-          <ul className="grid gap-5 md:grid-cols-3" role="list">
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" role="list">
             {articles.map((a) => {
               const guideImg = getGuideImage(a.slug);
               return (

@@ -21,7 +21,7 @@ export default async function RecentPage() {
         <EmptyState icon={Clock} title="No recently viewed properties" description="Listings you open will appear here."
           action={{ href: "/properties", label: "Browse properties" }} />
       ) : (
-        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" role="list">
+        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" role="list">
           {rows.map((r) => <li key={r.property_id}><PropertyCard listing={toCard(r.property as unknown as RawCard)} /></li>)}
         </ul>
       )}

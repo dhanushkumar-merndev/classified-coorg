@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Play } from "lucide-react";
 import { VerifiedBadge } from "@/components/property/badges";
+import { type GridColumns, useGridColumns, wideColumnsClass } from "@/components/property/grid-columns";
 import { PropertyImage } from "@/components/property/property-image";
 import { SaveButton } from "@/components/property/save-button";
 import { Button } from "@/components/ui/button";
@@ -77,17 +78,22 @@ export function PropertyGrid({
   listings,
   priorityCount = 0,
   collapsibleOnMobile = false,
+  columns = 4,
 }: {
   listings: ListingCard[];
   priorityCount?: number;
   collapsibleOnMobile?: boolean;
+  /** Cards per row on the widest screens; 5 for full result lists. */
+  columns?: GridColumns;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Inside a result list with a 4/5 switch, the viewer's choice wins.
+  const perRow = useGridColumns() ?? columns;
   const hasMore = collapsibleOnMobile && listings.length > 4;
 
   return (
     <div className="space-y-4">
-      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" role="list">
+      <ul className={cn("grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", perRow > 4 && "gap-4", wideColumnsClass(perRow))} role="list">
         {listings.map((listing, i) => (
           <li
             key={listing.id}

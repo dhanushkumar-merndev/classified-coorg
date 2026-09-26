@@ -122,7 +122,7 @@
 @utility wrap {
   margin-inline: auto;
   width: 100%;
-  max-width: 77.5rem; /* 1240px at 100%; grows with the desktop scale */
+  max-width: 90rem; /* 1440px at 100%; grows with the desktop scale */
   padding-inline: 1.25rem;
   @media (width >= 40rem) {
     padding-inline: 2rem;

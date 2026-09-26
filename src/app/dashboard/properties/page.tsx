@@ -27,7 +27,7 @@ export default async function MyPropertiesPage({ searchParams }: PageProps<"/das
           action={{ href: "/dashboard/properties/new", label: "Add a property" }} />
       ) : (
         <>
-          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" role="list">
+          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" role="list">
             {listings.items.map((row) => {
               const counts = enquiryCounts[row.id];
               return (

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { SearchX } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
+import { cookies } from "next/headers";
+import { GridColumnsProvider, GridColumnsSelect } from "@/components/property/grid-columns";
 import { PropertyGrid } from "@/components/property/property-card";
 import { ResultsPagination } from "@/components/search/results-pagination";
 import { DesktopFilters, MobileFilters, SortSelect } from "@/components/search/search-filters";
@@ -8,6 +10,7 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatCount } from "@/lib/format";
+import { gridColumnsCookie } from "@/lib/grid-columns";
 import { PROPERTY_TYPE_LABELS } from "@/lib/labels";
 import { getLocationImage } from "@/lib/locations";
 import { getPropertyTypeImage } from "@/lib/property-types";
@@ -120,6 +123,7 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
       </Breadcrumb>
       <div className="flex gap-8">
         <DesktopFilters filters={filters} locations={towns} />
+        <GridColumnsProvider scope="properties" options={[4, 5]} initial={(await cookies()).get(gridColumnsCookie("properties"))?.value}>
         <section className="min-w-0 flex-1" aria-labelledby="results-heading">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -130,12 +134,13 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
             </div>
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <MobileFilters filters={filters} locations={towns} />
+              <GridColumnsSelect />
               <SortSelect filters={filters} />
             </div>
           </div>
           {result.items.length > 0 ? (
             <>
-              <PropertyGrid listings={result.items} priorityCount={3} />
+              <PropertyGrid listings={result.items} priorityCount={4} />
               <ResultsPagination page={result.page} pageCount={result.pageCount}
                 hrefFor={(page) => `/properties${toQueryString(filters, { page })}`} />
             </>
@@ -145,6 +150,7 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
               action={{ href: "/properties", label: "Clear all filters" }} />
           )}
         </section>
+        </GridColumnsProvider>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Clock } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
+import { GridColumnsList, GridColumnsProvider, GridColumnsSelect } from "@/components/property/grid-columns";
 import { PageIntro } from "@/components/site/page-intro";
 import { formatDate } from "@/lib/format";
 import { getGuideImage } from "@/lib/guides";
@@ -77,13 +78,14 @@ export default async function GuidesPage() {
           ))}
         />
       )}
-      <PageIntro title="Guides" lede="What to check before buying land in Coorg." />
+      <GridColumnsProvider scope="guides">
+      <PageIntro title="Guides" lede="What to check before buying land in Coorg." actions={<GridColumnsSelect />} />
       <div className="mt-8">
         {articles.length === 0 ? (
           <EmptyState icon={BookOpen} title="Guides are on the way" description="Our team is preparing buying guides for Coorg."
             action={{ href: "/properties", label: "Browse properties" }} />
         ) : (
-          <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3" role="list">
+          <GridColumnsList className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {articles.map((a) => {
               const guideImg = getGuideImage(a.slug);
               return (
@@ -118,9 +120,10 @@ export default async function GuidesPage() {
                 </li>
               );
             })}
-          </ul>
+          </GridColumnsList>
         )}
       </div>
+      </GridColumnsProvider>
     </div>
   );
 }
