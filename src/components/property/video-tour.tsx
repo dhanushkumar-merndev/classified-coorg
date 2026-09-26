@@ -1,7 +1,7 @@
 "use client";
 
 import type HlsType from "hls.js";
-import { Maximize, Minimize, Pause, Play, Settings2, Video } from "lucide-react";
+import { Loader2, Maximize, Minimize, Pause, Play, Settings2, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
@@ -89,9 +89,11 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
   const [showControls, setShowControls] = useState(false);
   const [flashIcon, setFlashIcon] = useState<"play" | "pause" | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Time state for the bottom bar.
+  // Time & buffer state for the bottom bar.
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(durationSeconds ?? 0);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
+  const [buffering, setBuffering] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
 
   const loadModule = () => (moduleRef.current ??= import("hls.js"));
@@ -99,9 +101,19 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
   // ── Time tracking via rAF ─────────────────────────────────────────
   const updateTime = useCallback(() => {
     const video = videoRef.current;
-    if (video && !isSeeking) {
-      setCurrentTime(video.currentTime);
-      if (video.duration && Number.isFinite(video.duration)) setDuration(video.duration);
+    if (video) {
+      if (!isSeeking) {
+        setCurrentTime(video.currentTime);
+        if (video.duration && Number.isFinite(video.duration)) setDuration(video.duration);
+      }
+      if (video.buffered && video.buffered.length > 0 && video.duration > 0) {
+        for (let i = video.buffered.length - 1; i >= 0; i--) {
+          if (video.buffered.start(i) <= video.currentTime) {
+            setBufferedPercent((video.buffered.end(i) / video.duration) * 100);
+            break;
+          }
+        }
+      }
     }
     rafRef.current = requestAnimationFrame(updateTime);
   }, [isSeeking]);
@@ -164,18 +176,33 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
     const video = videoRef.current;
     if (!video) return;
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onEnded = () => { setPlaying(false); setShowControls(true); };
+    const onPause = () => { setPlaying(false); setBuffering(false); };
+    const onWaiting = () => setBuffering(true);
+    const onPlaying = () => { setPlaying(true); setBuffering(false); };
+    const onCanPlay = () => setBuffering(false);
+    const onSeeking = () => setBuffering(true);
+    const onSeeked = () => setBuffering(false);
+    const onEnded = () => { setPlaying(false); setBuffering(false); setShowControls(true); };
     const onDurationChange = () => {
       if (video.duration && Number.isFinite(video.duration)) setDuration(video.duration);
     };
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("seeking", onSeeking);
+    video.addEventListener("seeked", onSeeked);
     video.addEventListener("ended", onEnded);
     video.addEventListener("durationchange", onDurationChange);
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("seeking", onSeeking);
+      video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("ended", onEnded);
       video.removeEventListener("durationchange", onDurationChange);
     };
@@ -212,6 +239,9 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
         setFailed(true);
       }
     });
+    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      setBuffering(false);
+    });
     hls.loadSource(src);
     hls.attachMedia(video);
   }
@@ -220,6 +250,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
     const video = videoRef.current;
     if (!video || started) return;
     setStarted(true);
+    setBuffering(true);
     const mod = await loadModule().catch(() => null);
     const Hls = mod?.default;
     if (Hls?.isSupported()) {
@@ -227,10 +258,13 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
     } else {
+      setBuffering(false);
       setFailed(true);
       return;
     }
-    video.play().catch(() => {});
+    video.play().catch(() => {
+      setBuffering(false);
+    });
     resetIdleTimer();
   }
 
@@ -400,8 +434,17 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
             </div>
           )}
 
+          {/* ── Buffer loader spinner ── */}
+          {started && !failed && buffering && (
+            <div className="pointer-events-none absolute inset-0 z-25 flex items-center justify-center">
+              <div className="flex size-14 items-center justify-center rounded-full bg-black/60 shadow-xl backdrop-blur-xs">
+                <Loader2 className="size-8 animate-spin text-emerald-400" aria-label="Buffering..." />
+              </div>
+            </div>
+          )}
+
           {/* ── Persistent center play button when paused ── */}
-          {started && !failed && !playing && !flashIcon && (
+          {started && !failed && !playing && !flashIcon && !buffering && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
               <span className="flex size-16 items-center justify-center rounded-full bg-black/50 text-white">
                 <Play className="ml-1 size-7 fill-current" aria-hidden="true" />
@@ -414,37 +457,44 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
             <div
               data-progress-bar
               className={cn(
-                "absolute inset-x-0 bottom-0 z-20 flex flex-col transition-opacity duration-300",
+                "absolute inset-x-0 bottom-0 z-20 flex flex-col px-4 pb-3 pt-6 transition-opacity duration-300",
                 !controlsVisible && "pointer-events-none opacity-0",
               )}
             >
               {/* Gradient scrim */}
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
 
-              {/* Progress bar (clickable/draggable) */}
-              <div
-                ref={progressRef}
-                className="group relative z-10 flex h-5 cursor-pointer items-end px-0"
-                onPointerDown={onProgressPointerDown}
-              >
-                <div className="relative h-1 w-full transition-all group-hover:h-1.5">
-                  {/* Track */}
-                  <div className="absolute inset-0 rounded-full bg-white/30" />
-                  {/* Filled */}
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-white"
-                    style={{ width: `${progress}%` }}
-                  />
-                  {/* Thumb */}
-                  <div
-                    className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-                    style={{ left: `${progress}%` }}
-                  />
+              {/* Progress bar with horizontal padding (inset from edges) */}
+              <div className="relative z-10 py-1">
+                <div
+                  ref={progressRef}
+                  className="group relative flex h-4 cursor-pointer items-center"
+                  onPointerDown={onProgressPointerDown}
+                >
+                  <div className="relative h-1 w-full rounded-full transition-all group-hover:h-1.5">
+                    {/* Track */}
+                    <div className="absolute inset-0 rounded-full bg-white/20" />
+                    {/* Buffered range */}
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-white/40 transition-all duration-150"
+                      style={{ width: `${Math.min(100, Math.max(0, bufferedPercent))}%` }}
+                    />
+                    {/* Green played fill */}
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-emerald-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                    {/* Green pill / thumb */}
+                    <div
+                      className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500 shadow-md ring-2 ring-emerald-400/40 transition-transform group-hover:scale-125"
+                      style={{ left: `${progress}%` }}
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Time + controls row */}
-              <div className="relative z-10 flex items-center gap-3 px-3 pb-2.5 pt-0.5">
+              <div className="relative z-10 flex items-center gap-3 pt-0.5">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); togglePlay(); }}
@@ -476,19 +526,35 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
                       align="end"
                       side="top"
                       sideOffset={8}
-                      className="min-w-40"
+                      className="min-w-44 rounded-xl border border-white/10 bg-neutral-900/95 p-1.5 text-white shadow-2xl backdrop-blur-md ring-0"
                       container={isFS ? playerRef.current : undefined}
                     >
-                      <DropdownMenuLabel>Quality</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/50">
+                        Quality
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator className="-mx-1.5 my-1 bg-white/10" />
                       <DropdownMenuRadioGroup value={choice} onValueChange={pick}>
-                        <DropdownMenuRadioItem value={AUTO}>
-                          Auto{current && choice === AUTO ? <span className="ml-auto text-xs text-muted-foreground">{current}</span> : null}
+                        <DropdownMenuRadioItem
+                          value={AUTO}
+                          className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400"
+                        >
+                          Auto
+                          {current && choice === AUTO ? (
+                            <span className="ml-auto text-xs text-white/50">{current}</span>
+                          ) : null}
                         </DropdownMenuRadioItem>
                         {levels.map((l) => (
-                          <DropdownMenuRadioItem key={l.index} value={String(l.index)}>
+                          <DropdownMenuRadioItem
+                            key={l.index}
+                            value={String(l.index)}
+                            className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400"
+                          >
                             {l.label}
-                            {l.label === "1080p" && <span className="ml-auto text-xs text-muted-foreground">HD</span>}
+                            {l.label === "1080p" && (
+                              <span className="ml-auto rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-white/90">
+                                HD
+                              </span>
+                            )}
                           </DropdownMenuRadioItem>
                         ))}
                       </DropdownMenuRadioGroup>
