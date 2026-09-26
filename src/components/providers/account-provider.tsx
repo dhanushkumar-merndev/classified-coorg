@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { createBrowserSupabase } from "@/lib/supabase/browser";
 
 // Client-side view of the signed-in account for chrome (header menu, save
@@ -62,6 +63,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSavedMap] = useState<Record<string, boolean>>({});
   const pending = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pathname = usePathname();
 
   const refresh = useCallback(async () => {
     const hasSession = await checkHasSession();
@@ -102,10 +104,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setStatus("signed-in");
   }, []);
 
+  // Re-check session on mount and whenever the route changes (e.g. after
+  // server-action logout → redirect). The root layout never unmounts, so
+  // pathname is the only signal that a navigation happened.
   useEffect(() => {
     const init = setTimeout(() => void refresh(), 0);
     return () => clearTimeout(init);
-  }, [refresh]);
+  }, [pathname, refresh]);
+
 
   // Once the client is loaded (a session existed), follow its auth events.
   useEffect(() => {

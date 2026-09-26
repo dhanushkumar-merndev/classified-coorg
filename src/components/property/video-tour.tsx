@@ -1,7 +1,7 @@
 "use client";
 
 import type HlsType from "hls.js";
-import { Maximize, Minimize, Play, Settings2, Video } from "lucide-react";
+import { Maximize, Minimize, Pause, Play, Settings2, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ interface Level {
 type HlsModule = typeof import("hls.js");
 
 const AUTO = "-1";
+const IDLE_TIMEOUT = 2500;
 
 function formatDuration(seconds: number): string {
   const s = Math.round(seconds);
@@ -76,16 +77,39 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
   const videoRef = useRef<HTMLVideoElement>(null);
   const moduleRef = useRef<Promise<HlsModule> | null>(null);
   const hlsRef = useRef<HlsType | null>(null);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [started, setStarted] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [levels, setLevels] = useState<Level[]>([]);
   const [choice, setChoice] = useState(AUTO);
   const [current, setCurrent] = useState<string | null>(null);
   const [isFS, setIsFS] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  // Brief flash of the big centered play/pause icon on toggle.
+  const [flashIcon, setFlashIcon] = useState<"play" | "pause" | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadModule = () => (moduleRef.current ??= import("hls.js"));
 
-  // Track fullscreen state changes.
+  // ── Idle-based auto-hide ──────────────────────────────────────────
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    setShowControls(true);
+    idleTimer.current = setTimeout(() => setShowControls(false), IDLE_TIMEOUT);
+  }, []);
+
+  const onPointerMove = useCallback(() => {
+    if (started && !failed) resetIdleTimer();
+  }, [started, failed, resetIdleTimer]);
+
+  const onPointerLeave = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    // Give a short grace period then hide.
+    idleTimer.current = setTimeout(() => setShowControls(false), 600);
+  }, []);
+
+  // ── Fullscreen ────────────────────────────────────────────────────
   useEffect(() => {
     function onFSChange() {
       setIsFS(isFullscreen());
@@ -98,7 +122,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     };
   }, []);
 
-  // Fetch hls.js shortly before the player scrolls into view.
+  // ── Preload hls.js when the player nears the viewport ─────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -117,9 +141,25 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     hlsRef.current = null;
   }, []);
 
+  // ── Sync playing state from the video element ─────────────────────
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onEnded = () => { setPlaying(false); setShowControls(true); };
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
+    return () => {
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
   function attach(Hls: HlsModule["default"], video: HTMLVideoElement) {
     const hls = new Hls({
-      // Do not fetch 1080p into a phone-sized player.
       capLevelToPlayerSize: true,
       maxDevicePixelRatio: 2,
       startFragPrefetch: true,
@@ -168,15 +208,36 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
       return;
     }
     video.play().catch(() => {
-      // Autoplay refused (e.g. the gesture expired): controls are showing.
+      // Autoplay refused (e.g. the gesture expired).
     });
+    resetIdleTimer();
   }
 
   function pick(value: string) {
     setChoice(value);
-    // -1 hands control back to adaptive selection; a level index pins it.
     if (hlsRef.current) hlsRef.current.currentLevel = Number(value);
   }
+
+  // ── Flash the centered play/pause icon briefly ────────────────────
+  const flash = useCallback((icon: "play" | "pause") => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    setFlashIcon(icon);
+    flashTimer.current = setTimeout(() => setFlashIcon(null), 600);
+  }, []);
+
+  // ── Toggle play/pause ─────────────────────────────────────────────
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !started || failed) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+      flash("play");
+    } else {
+      video.pause();
+      flash("pause");
+    }
+    resetIdleTimer();
+  }, [started, failed, flash, resetIdleTimer]);
 
   const toggleFullscreen = useCallback(() => {
     if (isFullscreen()) {
@@ -186,25 +247,47 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     }
   }, []);
 
-  // Double-click on the video area toggles fullscreen on the wrapper.
-  const onDoubleClick = useCallback(() => {
+  const onDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     toggleFullscreen();
   }, [toggleFullscreen]);
 
+  // Single click to toggle play/pause. We delay to distinguish from
+  // double-click (fullscreen). The timer is cleared on double-click.
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onVideoClick = useCallback((e: React.MouseEvent) => {
+    // Don't toggle when clicking on controls (buttons, menus).
+    if ((e.target as HTMLElement).closest("button, [role=menu], [data-radix-popper-content-wrapper]")) return;
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => togglePlay(), 200);
+  }, [togglePlay]);
+
+  const onVideoDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    onDoubleClick(e);
+  }, [onDoubleClick]);
+
   const hdLabel = levels.some((level) => level.label === "2160p (4K)") ? "4K" : shortSide && shortSide >= 1080 ? "Full HD" : shortSide && shortSide >= 720 ? "HD" : null;
   const autoLabel = choice === AUTO && current ? `Auto · ${current}` : choice === AUTO ? "Auto" : levels.find((l) => String(l.index) === choice)?.label;
+
+  // Controls visible when: not started (poster), or cursor is active, or paused.
+  const controlsVisible = !started || showControls || !playing;
 
   return (
     <div ref={containerRef} className={cn("overflow-hidden rounded-xl border bg-card shadow-xs", className)}>
       {/* Player wrapper — this element goes fullscreen so overlays stay visible. */}
       <div
         ref={playerRef}
-        className={cn("relative flex flex-col", isFS && "bg-black")}
-        onDoubleClick={onDoubleClick}
+        className={cn("relative flex flex-col", isFS && "h-screen bg-black")}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        style={isFS ? { cursor: controlsVisible ? "default" : "none" } : undefined}
       >
+        {/* ── Top bar: title + badges ── */}
         <div className={cn(
-          "flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3",
+          "flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3 transition-opacity duration-300",
           isFS && "absolute inset-x-0 top-0 z-20 border-b-0 bg-gradient-to-b from-black/70 to-transparent text-white",
+          isFS && !controlsVisible && "pointer-events-none opacity-0",
         )}>
           <div className="flex items-center gap-2">
             <span className={cn(
@@ -228,18 +311,23 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
           </div>
         </div>
 
-        <div className={cn("relative aspect-video w-full bg-neutral-950", isFS && "flex-1")} onPointerEnter={() => void loadModule()}>
+        {/* ── Video area ── */}
+        <div
+          className={cn("relative aspect-video w-full bg-neutral-950", isFS && "flex-1")}
+          onPointerEnter={() => void loadModule()}
+          onClick={started && !failed ? onVideoClick : undefined}
+          onDoubleClick={started && !failed ? onVideoDoubleClick : undefined}
+        >
           <video
             ref={videoRef}
             poster={posterUrl}
-            controls={started && !failed}
-            controlsList="nofullscreen"
             playsInline
             preload="none"
             className="size-full object-contain"
             aria-label={`Video tour of ${title}`}
           />
 
+          {/* ── Initial play button (before started) ── */}
           {!started && (
             <button
               type="button"
@@ -253,14 +341,39 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
             </button>
           )}
 
+          {/* ── Error overlay ── */}
           {failed && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/60 p-4 text-center text-sm text-white" role="alert">
               This video can&rsquo;t be played right now. Please try again later.
             </div>
           )}
 
+          {/* ── Centered flash icon (play/pause feedback) ── */}
+          {flashIcon && (
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+              <span className="flex size-16 animate-[flash-scale_0.5s_ease-out_forwards] items-center justify-center rounded-full bg-black/50 text-white">
+                {flashIcon === "play"
+                  ? <Play className="ml-1 size-7 fill-current" aria-hidden="true" />
+                  : <Pause className="size-7 fill-current" aria-hidden="true" />}
+              </span>
+            </div>
+          )}
+
+          {/* ── Persistent center play button when paused ── */}
+          {started && !failed && !playing && !flashIcon && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+              <span className="flex size-16 items-center justify-center rounded-full bg-black/50 text-white">
+                <Play className="ml-1 size-7 fill-current" aria-hidden="true" />
+              </span>
+            </div>
+          )}
+
+          {/* ── Top-right controls: quality + fullscreen ── */}
           {started && !failed && (
-            <div className="absolute right-2 top-2 z-20 flex items-center gap-2">
+            <div className={cn(
+              "absolute right-2 top-2 z-20 flex items-center gap-2 transition-opacity duration-300",
+              !controlsVisible && "pointer-events-none opacity-0",
+            )}>
               {levels.length > 1 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -302,5 +415,3 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     </div>
   );
 }
-
-
