@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { SiteHeader } from "@/components/site/site-header";
 import { LISTING_ROLES, hasAnyRole, requirePageActor } from "@/lib/auth/dal";
@@ -7,6 +8,8 @@ export const metadata: Metadata = { title: { default: "Dashboard", template: "%s
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const actor = await requirePageActor("/dashboard");
+  // Accounts that skipped first-login onboarding finish it before the dashboard.
+  if (!actor.fullName) redirect("/onboarding");
   return (
     <>
       <SiteHeader />

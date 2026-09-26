@@ -24,6 +24,9 @@ export interface Actor {
 
 export const ADMIN_ROLES: readonly Role[] = ["admin", "super_admin"];
 export const LISTING_ROLES: readonly Role[] = ["seller", "agent"];
+export const ADMIN_ROLE_IDS: readonly number[] = Object.entries(ROLE_BY_ID)
+  .filter(([, role]) => ADMIN_ROLES.includes(role))
+  .map(([id]) => Number(id));
 
 async function loadActor(): Promise<Actor | null> {
   const supabase = await createSessionClient();

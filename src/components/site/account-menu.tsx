@@ -27,7 +27,9 @@ export function AccountMenu() {
   if (status === "anonymous" || !account) {
     return (
       <Button asChild variant="ghost">
-        <Link href={`/login?next=${encodeURIComponent(pathname)}`}>Log in</Link>
+        {/* No return path: a plain log-in lands on the dashboard (or admin).
+            Save and enquire buttons pass their page so the user comes back. */}
+        <Link href="/login">Log in</Link>
       </Button>
     );
   }

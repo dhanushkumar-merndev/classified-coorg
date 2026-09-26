@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { AppError } from "@/lib/errors";
 import { isValidOtp, maskPhone, normalizePhone } from "@/lib/auth/phone";
+import { ADMIN_ROLE_IDS } from "@/lib/auth/dal";
 import { safeNextPath } from "@/lib/auth/safe-redirect";
 import { widgetEnv } from "@/lib/env";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -76,7 +77,22 @@ export async function verifyOtp(input: { phone: unknown; token: unknown; next?: 
   if (profileError) logger.warn("auth.ensure_profile_failed", { code: profileError.code });
   deliverNotificationsSoon();
 
-  return { redirectTo: safeNextPath(input.next) };
+  return { redirectTo: await landingPath(supabase, data.session.user.id, input.next) };
+}
+
+/** After sign-in: admins go to the admin console, first-time users (no name
+ *  yet) to onboarding, everyone else to the page they were sent from or their
+ *  dashboard. */
+async function landingPath(supabase: Awaited<ReturnType<typeof createSessionClient>>, userId: string, next: unknown): Promise<string> {
+  const requested = safeNextPath(next, "");
+  const [roles, profile] = await Promise.all([
+    supabase.from("user_roles").select("role_id").eq("user_id", userId).in("role_id", [...ADMIN_ROLE_IDS]).limit(1),
+    supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+  ]);
+  if (roles.error || profile.error) logger.warn("auth.landing_lookup_failed", { code: roles.error?.code ?? profile.error?.code });
+  if (roles.data?.length) return requested || "/admin";
+  if (profile.data && !profile.data.full_name) return requested ? `/onboarding?next=${encodeURIComponent(requested)}` : "/onboarding";
+  return requested || "/dashboard";
 }
 
 // ---------------------------------------------------------------------------
@@ -213,7 +229,7 @@ async function completeWidgetLogin(phone: string, accessToken: string, next: unk
   deliverNotificationsSoon();
   logger.info("auth.widget_sign_in", { phone: maskPhone(phone) });
   devTrace("widget_sign_in_ok", { phone: maskPhone(phone) });
-  return { redirectTo: safeNextPath(next) };
+  return { redirectTo: await landingPath(supabase, userId, next) };
 }
 
 async function findOrCreatePhoneUser(service: ReturnType<typeof createServiceClient>, phone: string): Promise<string> {

@@ -6,7 +6,7 @@ import { createServerClient } from "@supabase/ssr";
 // areas. This is not authorization: every page, action and route re-verifies
 // the actor through src/lib/auth/dal.ts against current database state.
 
-const PRIVATE_PREFIXES = ["/dashboard", "/admin"];
+const PRIVATE_PREFIXES = ["/dashboard", "/admin", "/onboarding"];
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
