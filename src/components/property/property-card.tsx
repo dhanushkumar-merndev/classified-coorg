@@ -1,11 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { VerifiedBadge } from "@/components/property/badges";
 import { PropertyImage } from "@/components/property/property-image";
 import { SaveButton } from "@/components/property/save-button";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatArea, formatPricePerUnit, formatPriceShort, formatRelative } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS } from "@/lib/labels";
 import { mediaUrl, propertyPath } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import type { ListingCard } from "@/repositories/public-listings";
 
 // design.md §11 content, trimmed for scanning: image with verified badge and
@@ -58,12 +64,46 @@ export function PropertyCardSkeleton() {
   );
 }
 
-export function PropertyGrid({ listings, priorityCount = 0 }: { listings: ListingCard[]; priorityCount?: number }) {
+export function PropertyGrid({
+  listings,
+  priorityCount = 0,
+  collapsibleOnMobile = false,
+}: {
+  listings: ListingCard[];
+  priorityCount?: number;
+  collapsibleOnMobile?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = collapsibleOnMobile && listings.length > 4;
+
   return (
-    <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" role="list">
-      {listings.map((listing, i) => (
-        <li key={listing.id} className="flex"><PropertyCard listing={listing} priority={i < priorityCount} /></li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        {listings.map((listing, i) => (
+          <li
+            key={listing.id}
+            className={cn(
+              "flex",
+              hasMore && !expanded && i >= 4 && "hidden sm:flex"
+            )}
+          >
+            <PropertyCard listing={listing} priority={i < priorityCount} />
+          </li>
+        ))}
+      </ul>
+      {hasMore && (
+        <div className="sm:hidden pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setExpanded(!expanded)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-primary/20 py-2.5 text-sm font-medium text-primary hover:bg-primary/5 active:scale-[0.99]"
+          >
+            <span>{expanded ? "Show less" : `See more (${listings.length - 4} more)`}</span>
+            {expanded ? <ChevronUp className="size-4" aria-hidden="true" /> : <ChevronDown className="size-4" aria-hidden="true" />}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

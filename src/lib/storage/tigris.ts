@@ -10,12 +10,15 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { tigrisEnv } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import type { StorageProvider } from "./storage-provider";
 
 // Tigris through its S3-compatible API. Features used: presigned PUT with
-// signed Content-Type/Content-Length, HEAD, GET, PUT, DELETE. Verify each
+// signed Content-Type/Content-Length, presigned GET, HEAD, (range) GET, PUT,
+// DELETE. Verify each
 // against the live Tigris account before launch rather than assuming full AWS
 // parity (STOR-003, STOR-012).
 
@@ -111,7 +114,22 @@ export const tigrisStorage: StorageProvider = {
     }
   },
 
-  async put(bucket, key, body, { contentType }) {
+  async getHead(bucket, key, bytes) {
+    try {
+      const out = await s3().send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: `bytes=0-${bytes - 1}` }));
+      const body = await out.Body?.transformToByteArray();
+      return Buffer.from(body ?? []).subarray(0, bytes);
+    } catch (error) {
+      if (isMissing(error)) throw new AppError("UPLOAD_NOT_FOUND", { cause: error });
+      throw new AppError("DEPENDENCY_FAILED", { cause: error });
+    }
+  },
+
+  async presignGet(bucket, key, { expiresInSeconds }) {
+    return getSignedUrl(s3(), new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: expiresInSeconds });
+  },
+
+  async put(bucket, key, body, { contentType, cacheControl }) {
     try {
       const out = await s3().send(
         new PutObjectCommand({
@@ -119,10 +137,29 @@ export const tigrisStorage: StorageProvider = {
           Key: key,
           Body: body,
           ContentType: contentType,
+          CacheControl: cacheControl,
           ContentMD5: createHash("md5").update(body).digest("base64"),
         }),
       );
       return { versionId: out.VersionId ?? null };
+    } catch (error) {
+      throw new AppError("DEPENDENCY_FAILED", { cause: error });
+    }
+  },
+
+  async putFile(bucket, key, filePath, { contentType, cacheControl }) {
+    try {
+      const { size } = await stat(filePath);
+      await s3().send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: createReadStream(filePath),
+          ContentLength: size,
+          ContentType: contentType,
+          CacheControl: cacheControl,
+        }),
+      );
     } catch (error) {
       throw new AppError("DEPENDENCY_FAILED", { cause: error });
     }

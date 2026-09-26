@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger
 import { AREA_UNIT_LABELS } from "@/lib/format";
 import { PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS } from "@/lib/labels";
 import { activeFilterCount, toQueryString, type SearchFilters } from "@/schemas/search.schema";
+import { cn } from "cn";
 
 // design.md §13–14: URL is the source of truth. Desktop applies changes
 // immediately (text/number inputs debounced 300 ms, continue.md §25); mobile
@@ -139,7 +140,7 @@ export function DesktopFilters({ filters, locations }: Props) {
   const count = activeFilterCount(filters);
   return (
     <aside aria-label="Filters" aria-busy={pending} className="hidden w-64 shrink-0 lg:block">
-      <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-4 overflow-y-auto rounded-md border bg-card p-5 [scrollbar-width:thin]">
+      <div className="sticky top-20 max-h-[calc(100dvh-6rem)] space-y-4 overflow-y-auto rounded-md border bg-card p-5">
         <div className="flex h-6 items-center justify-between">
           <h2 className="font-semibold">Filters {count > 0 && <Badge variant="secondary" className="ml-1">{count}</Badge>}</h2>
           {count > 0 && <Button variant="link" size="sm" className="h-auto p-0" onClick={() => go({ ...filters, ...CLEARED })}>Clear all</Button>}
@@ -155,7 +156,7 @@ const CLEARED: Partial<SearchFilters> = {
   minArea: undefined, maxArea: undefined, road: false, water: false, plantation: undefined, unit: "acre",
 };
 
-export function MobileFilters({ filters, locations }: Props) {
+export function MobileFilters({ filters, locations, className }: Props & { className?: string }) {
   const { go } = useNavigate();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
@@ -164,7 +165,7 @@ export function MobileFilters({ filters, locations }: Props) {
   return (
     <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(filters); }}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="lg:hidden">
+        <Button variant="outline" className={cn("w-full lg:hidden", className)}>
           <SlidersHorizontal /> Filters {count > 0 && <Badge variant="secondary">{count}</Badge>}
         </Button>
       </SheetTrigger>
@@ -185,12 +186,12 @@ export function MobileFilters({ filters, locations }: Props) {
   );
 }
 
-export function SortSelect({ filters }: { filters: SearchFilters }) {
+export function SortSelect({ filters, className }: { filters: SearchFilters; className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   return (
     <Select value={filters.sort} onValueChange={(sort) => router.push(`${pathname}${toQueryString(filters, { sort: sort as SearchFilters["sort"], page: 1 })}`, { scroll: false })}>
-      <SelectTrigger aria-label="Sort results" className="w-48"><SelectValue /></SelectTrigger>
+      <SelectTrigger aria-label="Sort results" className={cn("w-full sm:w-48", className)}><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="newest">Newest first</SelectItem>
         <SelectItem value="price_asc">Price: low to high</SelectItem>

@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Calendar, Check, Droplets, IndianRupee, LandPlot, MapPin, Route, Ruler, ShieldCheck, Tag, UserRound, X, Zap } from "lucide-react";
+import { Calendar, Check, Droplets, IndianRupee, LandPlot, MapPin, Route, Ruler, ShieldCheck, Tag, UserRound, Zap } from "lucide-react";
 import { VerifiedBadge } from "@/components/property/badges";
 import { ContactOwner } from "@/components/property/contact-owner";
 import { Gallery } from "@/components/property/gallery";
 import { PropertyGrid } from "@/components/property/property-card";
+import { VideoTour } from "@/components/property/video-tour";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatArea, formatDate, formatPriceFull, formatPricePerUnit, formatPriceShort } from "@/lib/format";
 import {
-  FEATURE_LABELS, LISTING_TYPE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, VERIFIED_DISCLAIMER,
+  LISTING_TYPE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, VERIFIED_DISCLAIMER,
 } from "@/lib/labels";
+import { detailValues, selectedAmenities, selectedFeatures } from "@/lib/listing/details";
 import { breadcrumbLd, jsonLd, truncate } from "@/lib/seo";
-import { mediaUrl, propertyPath, siteUrl } from "@/lib/site";
+import { mediaUrl, propertyPath, siteUrl, videoUrl } from "@/lib/site";
 import { getListingBySlug, getSimilarListings, type ListingDetail } from "@/repositories/public-listings";
 
 export const revalidate = 300;
@@ -61,6 +63,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
   const similar = await getSimilarListings(listing.id, listing.location?.id ?? null, listing.property_type);
   const perUnit = formatPricePerUnit(listing.price_per_unit, listing.area_unit);
   const images = listing.media.map((m, i) => ({ id: m.id, alt: m.alt_text ?? `${listing.title} — photo ${i + 1}` }));
+  const video = listing.video?.[0] ?? null;
   const locationName = listing.location?.name ?? "Coorg";
   const url = siteUrl(propertyPath(listing.slug));
 
@@ -94,11 +97,11 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
     { icon: UserRound, label: "Listed by", value: SELLER_TYPE_LABELS[listing.seller_type] ?? "Seller" },
   ];
 
-  const amenities = [
-    { icon: Route, label: "Road access", value: listing.road_access },
-    { icon: Droplets, label: "Water available", value: listing.water_available },
-    { icon: Zap, label: "Electricity", value: listing.electricity_available },
-  ];
+  const details = detailValues(listing.features);
+  const amenities = selectedAmenities(listing, details);
+  const features = selectedFeatures(details);
+  const amenityIcons: Record<string, typeof Check> = { road_access: Route, water_available: Droplets, electricity_available: Zap };
+
 
   return (
     <article className="wrap pb-28 pt-6 lg:pb-16">
@@ -129,7 +132,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
           </div>
           <h1 className="font-display text-2xl leading-tight text-balance md:text-3xl">{listing.title}</h1>
           <p className="flex items-center gap-1.5 text-muted-foreground">
-            <MapPin className="size-4 shrink-0" aria-hidden="true" /> {locationName}, Coorg
+            <MapPin className="size-4 shrink-0" aria-hidden="true" /> {locationName} area, Coorg
           </p>
         </div>
         <div className="shrink-0 md:text-right">
@@ -161,29 +164,30 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
             </Section>
           )}
 
-          <Section id="amenities" title="Amenities">
-            <ul className="grid gap-3 sm:grid-cols-3">
-              {amenities.map((a) => (
-                <li key={a.label} className="flex items-center gap-3 rounded-md border bg-card p-3.5 text-sm">
-                  <span className="flex size-8 items-center justify-center rounded-md bg-accent text-primary"><a.icon className="size-4" aria-hidden="true" /></span>
-                  <span className="flex-1 font-medium">{a.label}</span>
-                  {a.value === true ? <Check className="size-4 text-success" aria-label="Yes" />
-                    : a.value === false ? <X className="size-4 text-muted-foreground" aria-label="No" />
-                    : <span className="text-xs text-muted-foreground">Not stated</span>}
-                </li>
-              ))}
-            </ul>
-          </Section>
+          {amenities.length > 0 && (
+            <Section id="amenities" title="Amenities">
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {amenities.map((amenity) => {
+                  const Icon = amenityIcons[amenity.key] ?? Check;
+                  return (
+                    <li key={amenity.key} className="flex items-center gap-3 rounded-md border bg-card p-3.5 text-sm">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary"><Icon className="size-4" aria-hidden="true" /></span>
+                      <span className="font-medium">{amenity.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Section>
+          )}
 
-          {listing.features.length > 0 && (
+          {features.length > 0 && (
             <Section id="features" title="Features">
-              <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
-                {listing.features.map((f) => (
-                  <li key={f.feature_key} className="flex items-start gap-2 text-sm">
+              <ul className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                {features.map((feature) => (
+                  <li key={feature.key} className="flex min-w-0 items-start gap-2 text-sm">
                     <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-                    <span>
-                      {FEATURE_LABELS[f.feature_key] ?? f.feature_key.replace(/_/g, " ")}
-                      {f.feature_value && f.feature_value !== "true" ? `: ${f.feature_value}` : ""}
+                    <span className="wrap-anywhere">
+                      {feature.label}{feature.kind === "text" ? `: ${details[feature.key]}` : ""}
                     </span>
                   </li>
                 ))}
@@ -191,11 +195,23 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
             </Section>
           )}
 
-          <Section id="location" title="Location">
+          {video && (
+            <Section id="video-tour" title="Video tour">
+              <VideoTour
+                title={listing.title}
+                src={videoUrl(video.id)}
+                posterUrl={videoUrl(video.id, "poster.jpg")}
+                durationSeconds={Number(video.duration_seconds)}
+                shortSide={Math.min(video.width, video.height)}
+              />
+            </Section>
+          )}
+
+          <Section id="location" title="Approximate location">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-4">
               <p className="flex items-center gap-2 text-sm">
                 <MapPin className="size-4 text-primary" aria-hidden="true" />
-                {locationName}, Kodagu district, Karnataka
+                {locationName} area, Kodagu, Karnataka
               </p>
               {listing.location && (
                 <Link href={`/locations/${listing.location.slug}`} className="text-sm font-medium text-primary hover:underline">
@@ -203,7 +219,7 @@ export default async function PropertyPage({ params }: PageProps<"/property/[slu
                 </Link>
               )}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">The exact address is shared by our team when you arrange a site visit.</p>
+            <p className="mt-2 text-xs text-muted-foreground">Only the general area is shown. Contact Land in Coorg to arrange a site visit; our team will share the exact location and directions.</p>
           </Section>
 
           <Alert>

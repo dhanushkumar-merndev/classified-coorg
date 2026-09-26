@@ -1,3 +1,6 @@
+import { AMENITY_OPTIONS, FEATURE_OPTIONS } from "@/lib/listing/details";
+export { FEATURE_OPTIONS } from "@/lib/listing/details";
+
 import type { PropertyStatus } from "@/lib/domain/property-lifecycle";
 
 // Human-readable labels for stored enumeration values, plus URL slugs for
@@ -78,14 +81,31 @@ export const SUBMISSION_GAP_LABELS: Record<string, string> = {
   seller_type: "Seller type",
   price: "Price",
   area: "Area and unit",
-  location: "Location",
+  location: "General area",
+  amenities: "Select exactly 3, 6 or 9 amenities",
+  features: "Enter exactly 6, 8, 10 or 12 features",
   photos: "At least 4 photos",
   photo_portrait: "At least one portrait photo (3:4 or 9:16)",
   photo_landscape: "At least one landscape photo (4:3 or 16:9)",
   cover_photo: "A cover photo",
   documents: "At least one document",
   uploads_in_progress: "Wait for uploads in progress to finish",
+  video_processing: "Wait for the video to finish processing",
 };
+
+/** Why a video could not be processed (video_jobs / property_videos error codes). */
+export const VIDEO_ERROR_LABELS: Record<string, string> = {
+  video_too_long: "The video is longer than 2 minutes. Trim it and upload again.",
+  video_too_short: "The video is too short.",
+  video_resolution_too_high: "The video resolution is too high. Export it at 4K or lower and upload again.",
+  video_resolution_too_low: "The video resolution is too low. Upload a clearer video (at least 360p).",
+  video_no_picture: "This file has no video picture.",
+  video_unreadable: "This file could not be read as a video. Try exporting it as MP4.",
+  video_encode_timeout: "This video took too long to process. Export it at 1080p and upload again.",
+  processing_timeout: "Processing did not finish. Please upload the video again.",
+};
+
+export const VIDEO_ERROR_FALLBACK = "This video could not be processed. Please upload it again.";
 
 export const ROLE_LABELS: Record<string, string> = {
   buyer: "Buyer",
@@ -95,21 +115,10 @@ export const ROLE_LABELS: Record<string, string> = {
   super_admin: "Super admin",
 };
 
-/** Feature keys offered in the listing form (PROPOSED, GAP-03). */
-export const FEATURE_OPTIONS: Array<{ key: string; label: string; kind: "boolean" | "text" }> = [
-  { key: "plantation_type", label: "Plantation (e.g. Arabica, Robusta, pepper)", kind: "text" },
-  { key: "borewell", label: "Borewell", kind: "boolean" },
-  { key: "stream_or_river", label: "Stream or river frontage", kind: "boolean" },
-  { key: "pond", label: "Pond / tank", kind: "boolean" },
-  { key: "fenced", label: "Fenced boundary", kind: "boolean" },
-  { key: "farmhouse", label: "Farmhouse / bungalow", kind: "boolean" },
-  { key: "labour_quarters", label: "Labour quarters", kind: "boolean" },
-  { key: "drying_yard", label: "Coffee drying yard", kind: "boolean" },
-  { key: "view", label: "View (valley, hill, forest)", kind: "text" },
-  { key: "distance_to_town_km", label: "Distance to nearest town (km)", kind: "text" },
-];
-
-export const FEATURE_LABELS: Record<string, string> = Object.fromEntries(FEATURE_OPTIONS.map((f) => [f.key, f.label.replace(/ \(.*\)$/, "")]));
+export const FEATURE_LABELS: Record<string, string> = {
+  ...Object.fromEntries([...AMENITY_OPTIONS, ...FEATURE_OPTIONS].map((f) => [f.key, f.label])),
+  distance_to_town_km: "Distance to nearest town (private)",
+};
 
 export function toSlug(value: string): string {
   return value.replace(/_/g, "-");

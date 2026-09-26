@@ -5,6 +5,11 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.
 
 // Next injects inline scripts for hydration, so script-src keeps 'unsafe-inline'
 // (nonce-based CSP would force fully dynamic rendering and disable static caching).
+// Listing videos: hls.js feeds the player through a blob: MediaSource URL and
+// fetches segments straight from Tigris via signed URLs (connect-src below);
+// Safari's native HLS loads them as media.
+const TIGRIS_HOSTS = "https://*.t3.storage.dev https://t3.storage.dev";
+
 function buildCsp(extra: { script?: string; connect?: string; frame?: string; style?: string; img?: string; worker?: string } = {}) {
   return [
     "default-src 'self'",
@@ -12,9 +17,10 @@ function buildCsp(extra: { script?: string; connect?: string; frame?: string; st
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${extra.style ?? ""}`,
     "font-src 'self' https://fonts.gstatic.com data:",
     `img-src 'self' data: blob: ${extra.img ?? ""}`,
-    `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} https://*.t3.storage.dev https://t3.storage.dev ${extra.connect ?? ""}`,
+    `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} ${TIGRIS_HOSTS} ${extra.connect ?? ""}`,
+    `media-src 'self' blob: ${TIGRIS_HOSTS}`,
     ...(extra.frame ? [`frame-src ${extra.frame}`] : []),
-    ...(extra.worker ? [`worker-src ${extra.worker}`] : []),
+    `worker-src ${extra.worker ?? "'self' blob:"}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -39,6 +45,21 @@ const loginCsp = buildCsp({
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Tailwind's CSS is small (~22 KiB, ~5 KiB gzipped): inline it into the
+    // HTML so first paint does not wait for a render-blocking stylesheet.
+    inlineCss: true,
+  },
+  // The transcoder spawns these binaries; they must stay real files in
+  // node_modules (not bundled) and ship with the video job function.
+  serverExternalPackages: ["ffmpeg-static", "@ffprobe-installer/ffprobe"],
+  outputFileTracingIncludes: {
+    "/api/jobs/video": [
+      "./node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/.pnpm/ffmpeg-static@*/node_modules/ffmpeg-static/ffmpeg",
+      "./node_modules/.pnpm/@ffprobe-installer+linux-x64@*/node_modules/@ffprobe-installer/linux-x64/**",
+    ],
+  },
   // Dev only: the temporary HTTPS tunnel used to test real SMS login
   // (hCaptcha refuses localhost). Ignored by production builds.
   allowedDevOrigins: ["upper-electable-chase.ngrok-free.dev"],

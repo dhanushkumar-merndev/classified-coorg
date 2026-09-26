@@ -1,0 +1,12 @@
+# Never upload local env files: production values live in Vercel env vars,
+# and .env carries staging secrets and test-only numbers.
+.env*
+!.env.example
+.scratch
+.vercel
+.next
+node_modules
+test-results
+playwright-report
+e2e/.auth
+tsconfig.tsbuildinfo

@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 
 // Listing photos come from /media/<id>/<variant>, already resized and
 // re-encoded to WebP at upload, so the Next image optimizer is bypassed
-// (`unoptimized`); next/image still provides lazy loading, priority for the
-// LCP image and layout-stable sizing. Broken or missing images fall back.
+// (`unoptimized`); next/image still provides lazy loading, a high fetch
+// priority for the LCP image and layout-stable sizing. Broken or missing
+// images fall back.
 
 export function PropertyImage({
   src,
@@ -38,8 +39,8 @@ export function PropertyImage({
       alt={alt}
       fill
       unoptimized
-      priority={priority}
-      loading={priority ? undefined : "lazy"}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
       sizes={sizes ?? "(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"}
       className={cn("object-cover", className)}
       onError={() => setFailed(true)}

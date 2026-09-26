@@ -5,6 +5,7 @@ import { runAction } from "@/lib/api/response";
 import { requireActor } from "@/lib/auth/dal";
 import { AppError, fromDatabaseError } from "@/lib/errors";
 import { createSessionClient } from "@/lib/supabase/server";
+import { deliverNotificationsSoon } from "@/services/notification.service";
 import { revalidatePath } from "next/cache";
 
 // Buyer actions (favorite.add/remove, enquiry.create, history.clear). All run
@@ -54,7 +55,9 @@ export async function createEnquiryAction(input: unknown) {
     });
     if (error) throw fromDatabaseError(error);
     revalidatePath("/dashboard/enquiries");
-    return data as { enquiry_id: string; replayed: boolean };
+    const result = data as { enquiry_id: string; replayed: boolean };
+    if (!result.replayed) deliverNotificationsSoon();
+    return result;
   });
 }
 

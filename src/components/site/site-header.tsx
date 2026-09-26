@@ -53,10 +53,10 @@ export function SiteHeader() {
             <Link href="/properties"><Search /></Link>
           </Button>
           <Button asChild variant="ghost" size="icon" className="hidden lg:inline-flex" aria-label="Saved properties" title="Saved">
-            <Link href="/dashboard/saved"><Heart /></Link>
+            <Link href="/dashboard/saved" prefetch={false}><Heart /></Link>
           </Button>
           <Button asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard/properties/new"><Plus /> Post a property</Link>
+            <Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post a property</Link>
           </Button>
           <AccountMenu />
           <Sheet open={open} onOpenChange={setOpen}>
@@ -71,9 +71,9 @@ export function SiteHeader() {
                     {item.label}
                   </Link>
                 ))}
-                <Link href="/dashboard/saved" className="rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted">Saved</Link>
+                <Link href="/dashboard/saved" prefetch={false} className="rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted">Saved</Link>
                 <Separator className="my-2" />
-                <Button asChild size="lg"><Link href="/dashboard/properties/new"><Plus /> Post property</Link></Button>
+                <Button asChild size="lg"><Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post property</Link></Button>
               </nav>
             </SheetContent>
           </Sheet>

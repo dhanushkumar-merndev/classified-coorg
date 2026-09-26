@@ -18,6 +18,23 @@ export function sniffFileType(bytes: Uint8Array): SniffedType | null {
   return null;
 }
 
+/** ffmpeg demuxer for an uploaded video, from its magic bytes. The transcoder
+ *  forces this demuxer, so an upload can never be read as a playlist, concat
+ *  list or other format that references further URLs or local files. */
+export type VideoContainer = "mov" | "matroska";
+
+export function sniffVideoContainer(bytes: Uint8Array): VideoContainer | null {
+  // ISO BMFF (MP4, MOV, 3GP): a leading box of a known type.
+  if (bytes.length >= 12 && ["ftyp", "moov", "mdat", "wide", "free", "skip"].includes(ascii(bytes, 4, 8))) {
+    return "mov";
+  }
+  // EBML header (WebM, Matroska).
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return "matroska";
+  }
+  return null;
+}
+
 function ascii(bytes: Uint8Array, start: number, end: number): string {
   return String.fromCharCode(...bytes.subarray(start, end));
 }

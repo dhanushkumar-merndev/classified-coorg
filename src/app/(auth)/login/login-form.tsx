@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { requestOtpAction, startLoginAction, verifyOtpAction, verifyWidgetCodeAction, verifyWidgetLoginAction } from "./actions";
 import { browserFingerprint } from "@/components/auth/browser-fingerprint";
-import { WIDGET_ID, WidgetError, loadMsg91Widget, widgetRetry, widgetRetrySeconds, widgetSend, widgetVerify } from "@/components/auth/msg91-widget";
+import { WidgetError, widgetRetry, widgetRetrySeconds, widgetSend, widgetVerify } from "@/components/auth/msg91-widget";
 import { useAccount } from "@/components/providers/account-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -20,6 +20,13 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 
 const INVALID_CODE = "That code is incorrect or has expired. Check the SMS or request a new code.";
 const SEND_FAILED = "We could not send the code. Please try again shortly.";
+/** True when this document itself was loaded at /login (not reached by an
+ *  in-app navigation, which keeps the previous page's CSP). */
+function documentLoadedAtLogin(): boolean {
+  const entry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  if (!entry) return true;
+  try { return new URL(entry.name).pathname === "/login"; } catch { return true; }
+}
 
 /** Friendly text for a widget failure; MSG91's own wording shown in development. */
 function widgetMessage(error: unknown, fallback: string): string {
@@ -48,11 +55,6 @@ export function LoginForm() {
   const [pending, startTransition] = useTransition();
   const verifying = useRef(false);
   const reqId = useRef<string | null>(null);
-
-  // Warm the widget so "Send code" does not wait for MSG91's script.
-  useEffect(() => {
-    if (WIDGET_ID) loadMsg91Widget().catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -130,6 +132,13 @@ export function LoginForm() {
         setCodeLength(start.codeLength);
         setStep("code");
         setCooldown(start.resendAfterSeconds);
+        return;
+      }
+      if (!documentLoadedAtLogin()) {
+        // MSG91's browser script (captcha on) is allowed by our CSP only on a
+        // page loaded at /login. After an in-app navigation the previous
+        // page's stricter policy still applies, so load /login properly.
+        window.location.reload();
         return;
       }
       try {

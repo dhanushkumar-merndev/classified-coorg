@@ -2,11 +2,11 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Actor } from "@/lib/auth/dal";
-import { DOCUMENT_LIMITS, DOCUMENT_TYPES, IMAGE_LIMITS, UPLOAD_TIMING } from "@/lib/config/uploads";
+import { DOCUMENT_LIMITS, DOCUMENT_TYPES, IMAGE_LIMITS, UPLOAD_TIMING, VIDEO_LIMITS } from "@/lib/config/uploads";
 import { tigrisEnv } from "@/lib/env";
 import { AppError, fromDatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
-import { findUnsafePdfFeatures, sanitizeFilename, sniffFileType } from "@/lib/storage/file-validation";
+import { findUnsafePdfFeatures, sanitizeFilename, sniffFileType, sniffVideoContainer } from "@/lib/storage/file-validation";
 import { processDocumentImage, processListingImage } from "@/lib/storage/image-processing";
 import type { StorageProvider } from "@/lib/storage/storage-provider";
 import { tigrisStorage } from "@/lib/storage/tigris";
@@ -22,6 +22,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 //      cannot alter reviewed bytes (STOR-004).
 // Database functions re-check owner, account, role, listing state and quota
 // at each step (MEDIA-009); the service role is used only for these calls.
+// Videos differ at step 3: the upload is too large to read here, so finalize
+// only sniffs its first bytes and hands it to the transcode jobs
+// (video.service.ts), which write the new, derived objects.
 
 const initiateSchema = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -30,6 +33,13 @@ const initiateSchema = z.discriminatedUnion("kind", [
     fileName: z.string().max(400),
     contentType: z.enum(IMAGE_LIMITS.acceptedMimeTypes),
     size: z.int().positive().max(IMAGE_LIMITS.maxBytes),
+  }),
+  z.strictObject({
+    kind: z.literal("property_video"),
+    propertyId: z.uuid(),
+    fileName: z.string().max(400),
+    contentType: z.enum(VIDEO_LIMITS.acceptedMimeTypes),
+    size: z.int().positive().max(VIDEO_LIMITS.maxBytes),
   }),
   z.strictObject({
     kind: z.literal("property_document"),
@@ -61,8 +71,12 @@ export async function initiateUpload(actor: Actor, raw: unknown, deps: Deps = de
     throw new AppError(tooLarge ? "FILE_TOO_LARGE" : badType ? "UNSUPPORTED_MEDIA_TYPE" : "VALIDATION_FAILED");
   }
   const input = parsed.data;
-  const isImage = input.kind === "property_image";
-  const bucket = isImage ? deps.buckets.media : deps.buckets.documents;
+  const bucket = input.kind === "property_document" ? deps.buckets.documents : deps.buckets.media;
+  const maxItems = {
+    property_image: IMAGE_LIMITS.maxPerListing,
+    property_video: VIDEO_LIMITS.maxPerListing,
+    property_document: DOCUMENT_LIMITS.maxPerListing,
+  }[input.kind];
 
   const { data, error } = await createServiceClient().rpc("upload_session_create", {
     p_actor_id: actor.id,
@@ -73,7 +87,7 @@ export async function initiateUpload(actor: Actor, raw: unknown, deps: Deps = de
     p_declared_mime: input.contentType,
     p_original_filename: sanitizeFilename(input.fileName),
     p_bucket: bucket,
-    p_max_items: isImage ? IMAGE_LIMITS.maxPerListing : DOCUMENT_LIMITS.maxPerListing,
+    p_max_items: maxItems,
     p_ttl_seconds: UPLOAD_TIMING.sessionTtlSeconds,
   });
   if (error) throw fromDatabaseError(error);
@@ -91,7 +105,7 @@ interface ClaimedSession {
   state: "processing";
   lease_token: string;
   property_id: string;
-  kind: "property_image" | "property_document";
+  kind: "property_image" | "property_document" | "property_video";
   document_type: string | null;
   bucket: string;
   quarantine_key: string;
@@ -130,6 +144,7 @@ export async function finalizeUpload(actor: Actor, sessionId: string, deps: Deps
     await fail("size_mismatch");
     throw new AppError("UPLOAD_REJECTED", { detail: "size_mismatch" });
   }
+  if (claim.kind === "property_video") return finalizeVideo(db, deps, claim, lease, fail, head.contentLength);
 
   const isImage = claim.kind === "property_image";
   const maxBytes = isImage ? IMAGE_LIMITS.maxBytes : DOCUMENT_LIMITS.maxBytes;
@@ -228,6 +243,45 @@ export async function finalizeUpload(actor: Actor, sessionId: string, deps: Deps
     }
     throw error;
   }
+}
+
+/** Sniffs the container and creates the video; its transcode jobs do the
+ *  rest. The quarantine object stays as their source. */
+async function finalizeVideo(
+  db: ReturnType<typeof createServiceClient>,
+  deps: Deps,
+  claim: ClaimedSession,
+  lease: { p_session_id: string; p_actor_id: string; p_lease_token: string },
+  fail: (code: string) => Promise<void>,
+  byteSize: number,
+) {
+  let container;
+  try {
+    container = sniffVideoContainer(await deps.storage.getHead(claim.bucket, claim.quarantine_key, 16));
+  } catch (error) {
+    await db.rpc("upload_session_release", lease);
+    throw error instanceof AppError ? error : new AppError("DEPENDENCY_FAILED", { cause: error });
+  }
+  if (!container) {
+    await fail("unsupported_media_type");
+    throw new AppError("UNSUPPORTED_MEDIA_TYPE");
+  }
+  const { data, error } = await db.rpc("upload_session_finalize_video", {
+    ...lease, p_video_id: randomUUID(), p_container: container, p_byte_size: byteSize,
+  });
+  if (error) {
+    const appError = fromDatabaseError(error);
+    if (appError.code === "UPLOAD_LEASE_LOST") {
+      // Another worker owns the session now.
+    } else if (appError.code === "DEPENDENCY_FAILED" || appError.code === "INTERNAL") {
+      await db.rpc("upload_session_release", lease);
+    } else {
+      await fail(appError.code.toLowerCase());
+    }
+    throw appError;
+  }
+  const result = data as { id: string; replayed: boolean; job_id: string | null };
+  return { id: result.id, kind: claim.kind, replayed: result.replayed, jobId: result.job_id };
 }
 
 function rpcResult(response: { data: unknown; error: { message?: string; details?: string | null; code?: string } | null }) {

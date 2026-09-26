@@ -33,6 +33,7 @@ const AUTHENTICATED_EXECUTABLE = [
   "public.record_property_view",
   "public.remove_property_document",
   "public.remove_property_media",
+  "public.remove_property_video",
   "public.seller_enquiry_counts",
   "public.transition_property",
   "public.update_enquiry_status",
@@ -46,10 +47,11 @@ const CLIENT_TABLE_PRIVILEGES: Record<string, { anon: string[]; authenticated: s
   locations: { anon: ["SELECT"], authenticated: ["SELECT"] },
   notifications: { anon: [], authenticated: ["SELECT"] },
   profiles: { anon: [], authenticated: ["SELECT"] },
-  properties: { anon: [], authenticated: ["SELECT"] }, // anon: column-level allowlist below
+  properties: { anon: [], authenticated: [] }, // both roles: column-level allowlists
   property_documents: { anon: [], authenticated: ["SELECT"] },
   property_features: { anon: ["SELECT"], authenticated: ["DELETE", "SELECT"] },
   property_media: { anon: ["SELECT"], authenticated: ["SELECT"] },
+  property_videos: { anon: ["SELECT"], authenticated: ["SELECT"] },
   property_revisions: { anon: [], authenticated: ["SELECT"] },
   property_slug_history: { anon: ["SELECT"], authenticated: ["SELECT"] },
   property_status_history: { anon: [], authenticated: ["SELECT"] },

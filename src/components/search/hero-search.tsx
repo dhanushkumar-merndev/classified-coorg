@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PROPERTY_TYPE_LABELS, toSlug } from "@/lib/labels";
 
-// design.md §10: Location · Property type · Budget · Search. Horizontal on
-// desktop, stacked on mobile.
+// Location · Property type · Budget · Search, with a compact mobile grid.
 
 export const BUDGETS = [
   { value: "0-2500000", label: "Up to ₹25 L" },
@@ -40,14 +39,14 @@ export function HeroSearch({ locations }: { locations: Array<{ slug: string; nam
     router.push(`/properties${params.size ? `?${params}` : ""}`);
   }
 
-  const segment = "flex min-w-0 flex-col gap-0.5 px-4 py-3 md:px-5 transition-colors hover:bg-muted/60 focus-within:bg-muted/60";
-  const trigger = "h-7 w-full border-0 bg-transparent p-0 text-[0.95rem] font-medium shadow-none focus-visible:ring-0 [&_svg]:text-subtle";
-  const label = "text-xs font-medium text-muted-foreground";
+  const segment = "flex min-w-0 flex-col px-4 pt-2 pb-1 transition-colors hover:bg-muted/60 focus-within:bg-muted/60 md:px-5";
+  const trigger = "h-11 min-h-11 w-full border-0 bg-transparent p-0 text-[0.9375rem] font-medium shadow-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 md:text-base [&_svg]:text-subtle";
+  const label = "text-xs leading-4 font-medium text-muted-foreground";
 
   return (
     <form onSubmit={submit} role="search" aria-label="Search properties"
-      className="grid overflow-hidden rounded-md border bg-card shadow-[0_8px_24px_-12px_rgba(20,26,22,.16)] md:grid-cols-[1fr_1fr_1fr_auto] md:divide-x divide-y md:divide-y-0">
-      <div className={segment}>
+      className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/70 bg-card text-card-foreground shadow-[0_8px_24px_rgba(10,25,17,.12)] md:grid-cols-[1.1fr_1fr_1fr_auto]">
+      <div className={`${segment} col-span-2 border-b md:col-span-1 md:border-r md:border-b-0`}>
         <Label htmlFor="hero-location" className={label}>Location</Label>
         <Select value={location} onValueChange={setLocation}>
           <SelectTrigger id="hero-location" className={trigger}><SelectValue /></SelectTrigger>
@@ -57,7 +56,7 @@ export function HeroSearch({ locations }: { locations: Array<{ slug: string; nam
           </SelectContent>
         </Select>
       </div>
-      <div className={segment}>
+      <div className={`${segment} border-r`}>
         <Label htmlFor="hero-type" className={label}>Property type</Label>
         <Select value={type} onValueChange={setType}>
           <SelectTrigger id="hero-type" className={trigger}><SelectValue /></SelectTrigger>
@@ -77,7 +76,9 @@ export function HeroSearch({ locations }: { locations: Array<{ slug: string; nam
           </SelectContent>
         </Select>
       </div>
-      <Button type="submit" className="h-14 rounded-none px-8 text-base md:h-auto"><Search /> Search</Button>
+      <div className="col-span-2 border-t p-2 md:col-span-1 md:self-center md:border-t-0">
+        <Button type="submit" className="h-14 w-full gap-2 rounded-md px-8 text-base focus-visible:ring-offset-2"><Search aria-hidden="true" className="size-[18px]" /> Search</Button>
+      </div>
     </form>
   );
 }

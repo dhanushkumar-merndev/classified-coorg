@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { STORED_DETAIL_OPTIONS } from "@/lib/listing/details";
 import { AREA_TO_SQFT } from "@/lib/area";
 import { logger } from "@/lib/logger";
 import { createPublicClient } from "@/lib/supabase/server";
@@ -205,6 +206,8 @@ export interface ListingDetail {
   updated_at: string;
   location: { id: string; name: string; slug: string; parent_id: string | null } | null;
   media: Array<{ id: string; alt_text: string | null; sort_order: number; is_cover: boolean; width: number; height: number }>;
+  /** The ready video tour, if any (at most one). */
+  video: Array<{ id: string; duration_seconds: number; width: number; height: number }>;
   features: Array<{ feature_key: string; feature_value: string | null }>;
 }
 
@@ -228,10 +231,37 @@ export const getListingBySlug = unstable_cache(
       .select(DETAIL_COLUMNS)
       .eq("slug", slug)
       .is("media.removed_at", null)
+      .in("features.feature_key", STORED_DETAIL_OPTIONS.map((option) => option.key))
       .order("sort_order", { referencedTable: "media" })
       .maybeSingle();
-    if (error) throw error;
-    if (data) return { kind: "found", listing: data as unknown as ListingDetail };
+    if (error) {
+      logger.error("listing.load_failed", { code: error.code, message: error.message });
+      throw new Error("Unable to load this property.", { cause: error });
+    }
+    if (data) {
+      // Video tours are optional. Keep the core listing independent of the
+      // video migration and PostgREST's relationship cache during rollout.
+      const { data: video, error: videoError } = await supabase
+        .from("property_videos")
+        .select("id, duration_seconds, width, height")
+        .eq("property_id", data.id)
+        .is("removed_at", null)
+        .eq("state", "ready")
+        .limit(1);
+      if (videoError) {
+        const missingVideoTable = ["PGRST205", "42P01"].includes(videoError.code)
+          && /\bproperty_videos\b/.test(videoError.message);
+        if (!missingVideoTable) {
+          logger.error("listing.video_load_failed", { code: videoError.code, message: videoError.message });
+          throw new Error("Unable to load the property video.", { cause: videoError });
+        }
+        logger.warn("listing.video_schema_unavailable", {
+          code: videoError.code,
+          migration: "20260926000100_property_videos.sql",
+        });
+      }
+      return { kind: "found", listing: { ...data, video: video ?? [] } as unknown as ListingDetail };
+    }
 
     // Old slug → current canonical slug, only if that listing is public (LIFE-007).
     const { data: history } = await supabase
@@ -246,20 +276,34 @@ export const getListingBySlug = unstable_cache(
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },
 );
 
+const SIMILAR_COUNT = 6; // two full rows of the 3-column grid
+
 export const getSimilarListings = unstable_cache(
   async (listingId: string, locationId: string | null, propertyType: string): Promise<ListingCard[]> => {
-    let query = createPublicClient()
+    const base = () => createPublicClient()
       .from("properties")
       .select(CARD_COLUMNS)
-      .neq("id", listingId)
       .eq("cover.is_cover", true)
       .is("cover.removed_at", null);
+    let query = base().neq("id", listingId);
     query = locationId
       ? query.or(`location_id.eq.${locationId},property_type.eq.${propertyType}`)
       : query.eq("property_type", propertyType);
-    const { data, error } = await query.order("published_at", { ascending: false }).order("id", { ascending: false }).limit(4);
+    const { data, error } = await query.order("published_at", { ascending: false }).order("id", { ascending: false }).limit(SIMILAR_COUNT);
     if (error) throw error;
-    return ((data ?? []) as unknown as RawCard[]).map(toCard);
+    const similar = (data ?? []) as unknown as RawCard[];
+    if (similar.length >= SIMILAR_COUNT) return similar.map(toCard);
+
+    // Too few matches: top up with the newest listings so the grid stays full.
+    // At most SIMILAR_COUNT ids are excluded, so this stays a bounded index read.
+    const exclude = [listingId, ...similar.map((c) => c.id)];
+    const { data: recent, error: recentError } = await base()
+      .not("id", "in", `(${exclude.join(",")})`)
+      .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(SIMILAR_COUNT - similar.length);
+    if (recentError) throw recentError;
+    return [...similar, ...((recent ?? []) as unknown as RawCard[])].map(toCard);
   },
   ["public-similar"],
   { tags: [CACHE_TAGS.listings], revalidate: PUBLIC_TTL_SECONDS },

@@ -29,6 +29,12 @@ export interface StorageProvider {
   /** Reads the whole object, refusing anything larger than maxBytes. */
   getBytes(bucket: string, key: string, maxBytes: number): Promise<Buffer>;
   getStream(bucket: string, key: string): Promise<StoredObjectStream | null>;
-  put(bucket: string, key: string, body: Buffer, options: { contentType: string }): Promise<{ versionId: string | null }>;
+  /** First bytes of an object, for content sniffing without a full read. */
+  getHead(bucket: string, key: string, bytes: number): Promise<Buffer>;
+  /** Short-lived read grant for one object (video source, HLS segments). */
+  presignGet(bucket: string, key: string, options: { expiresInSeconds: number }): Promise<string>;
+  put(bucket: string, key: string, body: Buffer, options: { contentType: string; cacheControl?: string }): Promise<{ versionId: string | null }>;
+  /** Streams a local file up without holding it in memory. */
+  putFile(bucket: string, key: string, filePath: string, options: { contentType: string; cacheControl?: string }): Promise<void>;
   delete(bucket: string, key: string): Promise<void>;
 }

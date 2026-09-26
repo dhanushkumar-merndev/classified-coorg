@@ -1,4 +1,7 @@
 import "server-only";
+import { ADMIN_ROLES, requireActor } from "@/lib/auth/dal";
+import { getOptionalPropertyVideos } from "@/repositories/optional-videos";
+import { getPrivatePropertyLocation } from "@/repositories/private-location";
 import type { PropertyStatus } from "@/lib/domain/property-lifecycle";
 import { fromDatabaseError } from "@/lib/errors";
 import { createServiceClient, createSessionClient } from "@/lib/supabase/server";
@@ -65,12 +68,13 @@ export async function listAdminProperties(opts: { page: number; status?: Propert
 }
 
 export async function getReviewDetail(id: string) {
+  await requireActor({ anyRole: ADMIN_ROLES });
   if (!/^[0-9a-f-]{36}$/.test(id)) return null;
   const supabase = await createSessionClient();
   const { data: property, error } = await supabase
     .from("properties")
     .select(`id, slug, owner_id, status, version, current_revision_id, featured, title, description, property_type, seller_type,
-      price, negotiable, area_value, area_unit, address_text, road_access, water_available, electricity_available, updated_at,
+      price, negotiable, area_value, area_unit, road_access, water_available, electricity_available, updated_at,
       location:locations(name),
       owner:profiles!properties_owner_id_fkey(full_name, phone, email, user_type),
       media:property_media(id, sort_order, is_cover, alt_text),
@@ -82,13 +86,15 @@ export async function getReviewDetail(id: string) {
     .maybeSingle();
   if (error) throw fromDatabaseError(error);
   if (!property) return null;
-  const [history, notes] = await Promise.all([
+  const [history, notes, location, video] = await Promise.all([
     supabase.from("property_status_history").select("id, from_status, to_status, action, reason, created_at").eq("property_id", id)
       .order("created_at", { ascending: false }).limit(30),
     createServiceClient().from("admin_notes").select("id, note, created_at").eq("entity_type", "property").eq("entity_id", id)
       .order("created_at", { ascending: false }).limit(30),
+    getPrivatePropertyLocation(id),
+    getOptionalPropertyVideos(supabase, id),
   ]);
-  return { property, history: history.data ?? [], notes: notes.data ?? [] };
+  return { property: { ...property, video, address_text: location?.address_text ?? null }, history: history.data ?? [], notes: notes.data ?? [] };
 }
 
 export interface AdminUserRow {

@@ -122,7 +122,7 @@
 @utility wrap {
   margin-inline: auto;
   width: 100%;
-  max-width: 1240px;
+  max-width: 77.5rem; /* 1240px at 100%; grows with the desktop scale */
   padding-inline: 1.25rem;
   @media (width >= 40rem) {
     padding-inline: 2rem;
@@ -150,6 +150,12 @@
   html {
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
+    /* Desktop reads like 125% browser zoom: every rem (text, spacing, menus)
+       scales from 100% at 1024px wide to 125% from 1280px up; phones and
+       tablets stay at 100%. Percentages keep the user's own font setting as
+       the floor. Media queries still use the browser's 16px, so breakpoints
+       and dropdown positioning are unaffected. */
+    font-size: clamp(100%, 1.5625vw, 125%);
     /* Reserve the scrollbar's space so short pages and scroll-locked dialogs
        never jump sideways. Not overflow-y: scroll — that makes <body> the
        scroll container once Radix locks scrolling, which un-sticks the header. */
@@ -168,6 +174,49 @@
   }
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+/* Scrollbars everywhere (page, filter panel, menus): a slim green pill on a
+   clear track. Chrome/Edge/Safari use the ::-webkit-scrollbar rules; Firefox,
+   which has no such pseudo-elements, gets the standard properties instead.
+   (Setting scrollbar-width/-color on an element makes Chrome ignore these.) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+  background-color: color-mix(in oklab, var(--primary) 70%, transparent);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary);
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--primary) 70%, transparent) transparent;
+  }
+}
+
+/* Hero word rotator (RotatingWords): the next word rises in as the old one leaves. */
+@theme {
+  --animate-word-in: word-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-word-out: word-out 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes word-in {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes word-out {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-100%); opacity: 0; }
   }
 }
 

@@ -16,6 +16,17 @@ test("unknown route shows the friendly 404", async ({ page }) => {
   await expect(page.getByText(/not found|no longer available/i).first()).toBeVisible();
 });
 
+test("a public listing opens its property detail page", async ({ page }) => {
+  await page.goto("/properties");
+  const listing = page.locator("main a[href^='/property/']").first();
+  await expect(listing).toBeVisible();
+  const title = (await listing.innerText()).trim();
+  const href = await listing.getAttribute("href");
+  const response = await page.goto(href!);
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+});
+
 test("all public pages share one content width (no layout switch)", async ({ page }) => {
   const lefts = new Set<number>();
   for (const path of ["/", "/locations", "/property-types", "/guides", "/verification"]) {

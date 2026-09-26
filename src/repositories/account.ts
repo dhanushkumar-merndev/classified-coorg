@@ -1,4 +1,7 @@
 import "server-only";
+import { requireActor } from "@/lib/auth/dal";
+import { getOptionalPropertyVideos } from "@/repositories/optional-videos";
+import { getPrivatePropertyLocation } from "@/repositories/private-location";
 import type { PropertyStatus } from "@/lib/domain/property-lifecycle";
 import { fromDatabaseError } from "@/lib/errors";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -173,23 +176,27 @@ export interface OwnListingDetail {
   location: { name: string; slug: string } | null;
   media: Array<{ id: string; sort_order: number; is_cover: boolean; alt_text: string | null; width: number; height: number }>;
   documents: Array<{ id: string; document_type: string; mime_type: string; original_filename: string | null; created_at: string }>;
+  /** The listing's video tour in any state (at most one). */
+  video: Array<{ id: string; state: "processing" | "ready" | "failed"; error_code: string | null; duration_seconds: number | null; width: number | null; height: number | null }>;
   features: Array<{ id: string; feature_key: string; feature_value: string | null }>;
 }
 
 /** The owner's own listing for editing (RLS: owner or admin). */
 export async function getOwnListing(listingId: string): Promise<OwnListingDetail | null> {
   if (!/^[0-9a-f-]{36}$/.test(listingId)) return null;
+  const actor = await requireActor();
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("properties")
     .select(`id, slug, owner_id, status, version, current_revision_id, title, description, property_type, listing_type,
-      seller_type, price, negotiable, area_value, area_unit, location_id, address_text, road_access, water_available,
+      seller_type, price, negotiable, area_value, area_unit, location_id, road_access, water_available,
       electricity_available, published_at, updated_at,
       location:locations(name, slug),
       media:property_media(id, sort_order, is_cover, alt_text, width, height),
       documents:property_documents(id, document_type, mime_type, original_filename, created_at),
       features:property_features(id, feature_key, feature_value)`)
     .eq("id", listingId)
+    .eq("owner_id", actor.id)
     .is("deleted_at", null)
     .is("media.removed_at", null)
     .is("documents.removed_at", null)
@@ -199,7 +206,8 @@ export async function getOwnListing(listingId: string): Promise<OwnListingDetail
   if (!data) return null;
   // Price and area are handled as exact decimal strings in forms.
   const row = data as unknown as OwnListingDetail & { price: number | string | null; area_value: number | string | null };
-  return { ...row, price: row.price === null ? null : String(row.price), area_value: row.area_value === null ? null : String(row.area_value) };
+  const [location, video] = await Promise.all([getPrivatePropertyLocation(listingId), getOptionalPropertyVideos(supabase, listingId)]);
+  return { ...row, video: video as OwnListingDetail["video"], address_text: location?.address_text ?? null, price: row.price === null ? null : String(row.price), area_value: row.area_value === null ? null : String(row.area_value) };
 }
 
 export async function getOwnerFeedback(listingId: string) {

@@ -1,8 +1,10 @@
 import "server-only";
 import { z } from "zod";
 import { LISTING_ROLES, requireActor } from "@/lib/auth/dal";
+import { detailValues, listingDetailGaps } from "@/lib/listing/details";
 import { AppError, fromDatabaseError } from "@/lib/errors";
 import { createSessionClient } from "@/lib/supabase/server";
+import { deliverNotificationsSoon } from "@/services/notification.service";
 import {
   propertyDraftPatchSchema,
   transitionSchema,
@@ -75,6 +77,16 @@ export async function transitionProperty(raw: unknown) {
   const input = parsed.data;
 
   const supabase = await createSessionClient();
+  if (input.action === "submit") {
+    const { data: draft, error: draftError } = await supabase.from("properties")
+      .select("road_access, water_available, electricity_available, features:property_features(feature_key, feature_value)")
+      .eq("id", input.propertyId).maybeSingle();
+    if (draftError) throw fromDatabaseError(draftError);
+    if (!draft) throw new AppError("PROPERTY_NOT_FOUND");
+    const gaps = listingDetailGaps(draft, detailValues(draft.features));
+    if (gaps.length) throw new AppError("LISTING_INCOMPLETE", { detail: gaps.join(",") });
+  }
+
   const { data, error } = await supabase.rpc("transition_property", {
     p_property_id: input.propertyId,
     p_action: input.action,
@@ -85,5 +97,7 @@ export async function transitionProperty(raw: unknown) {
     p_request_id: input.requestId ?? null,
   });
   if (error) throw fromDatabaseError(error);
-  return data as { property_id: string; status: string; version: number; revision_id: string | null; replayed: boolean };
+  const result = data as { property_id: string; status: string; version: number; revision_id: string | null; replayed: boolean };
+  if (!result.replayed) deliverNotificationsSoon();
+  return result;
 }

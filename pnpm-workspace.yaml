@@ -1,4 +1,6 @@
 allowBuilds:
+  '@ffprobe-installer/linux-x64': true
   '@tigrisdata/cli': false
+  ffmpeg-static: true
   sharp: false
   unrs-resolver: false

@@ -57,7 +57,7 @@ export default async function PropertiesPage({ searchParams }: PageProps<"/prope
                 {formatCount(result.total)} verified {result.total === 1 ? "listing" : "listings"}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <MobileFilters filters={filters} locations={towns} />
               <SortSelect filters={filters} />
             </div>

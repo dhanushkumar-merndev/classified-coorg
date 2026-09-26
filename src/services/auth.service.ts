@@ -7,6 +7,7 @@ import { widgetEnv } from "@/lib/env";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { createServiceClient, createSessionClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
+import { deliverNotificationsSoon } from "@/services/notification.service";
 import { looksLikeAccessToken, tokenShape, verifyWidgetAccessToken } from "@/services/sms/msg91-widget";
 import { widgetMode, widgetSendOtp, widgetVerifyOtp } from "@/services/sms/msg91-widget-api";
 
@@ -55,6 +56,7 @@ export async function verifyOtp(input: { phone: unknown; token: unknown; next?: 
   // Idempotent: the auth.users trigger normally created it already.
   const { error: profileError } = await supabase.rpc("ensure_profile");
   if (profileError) logger.warn("auth.ensure_profile_failed", { code: profileError.code });
+  deliverNotificationsSoon();
 
   return { redirectTo: safeNextPath(input.next) };
 }
@@ -81,6 +83,11 @@ export async function startLogin(input: { phone: unknown; ip: string | null; fin
     return { method: "supabase", ...(await requestOtp({ ...input, fingerprintChecked: true })) };
   }
   if (input.ip) await enforceRateLimit("otp_request_ip", input.ip, "OTP_RATE_LIMITED");
+  if (widget.authKeyIsWidgetToken) {
+    // Codes could be sent but never confirmed; refuse before spending an SMS.
+    logger.error("auth.msg91_authkey_misconfigured", { hint: "MSG91_AUTH_KEY equals the widget tokenAuth; set the account authkey" });
+    throw new AppError("DEPENDENCY_FAILED");
+  }
 
   // Captcha off in the widget settings → send from our server (works in every
   // browser, our per-phone limits apply). Captcha on → the browser widget.
@@ -96,7 +103,9 @@ export async function startLogin(input: { phone: unknown; ip: string | null; fin
     if (/limit|many|exceed/i.test(sent.message)) throw new AppError("OTP_RATE_LIMITED", { retryAfterSeconds: mode.retrySeconds });
     throw new AppError("SMS_DELIVERY_FAILED");
   }
-  return { method: "widget-server", phone, reqId: sent.reqId, codeLength: mode.otpLength, resendAfterSeconds: Math.max(mode.retrySeconds, 30) };
+  // Resend goes through startLogin again, so the timer must cover our own
+  // per-phone cooldown too, not just MSG91's retry time.
+  return { method: "widget-server", phone, reqId: sent.reqId, codeLength: mode.otpLength, resendAfterSeconds: Math.max(mode.retrySeconds, RESEND_COOLDOWN_SECONDS) };
 }
 
 /** Server-mode widget: checks the code with MSG91, then opens the session. */
@@ -182,6 +191,7 @@ async function completeWidgetLogin(phone: string, accessToken: string, next: unk
 
   const { error: profileError } = await supabase.rpc("ensure_profile");
   if (profileError) logger.warn("auth.ensure_profile_failed", { code: profileError.code });
+  deliverNotificationsSoon();
   logger.info("auth.widget_sign_in", { phone: maskPhone(phone) });
   devTrace("widget_sign_in_ok", { phone: maskPhone(phone) });
   return { redirectTo: safeNextPath(next) };

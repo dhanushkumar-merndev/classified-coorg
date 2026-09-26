@@ -90,6 +90,9 @@ export const widgetEnv = loader(
   "MSG91 widget",
   widgetSchema.transform((env) => ({
     enabled: Boolean(env.NEXT_PUBLIC_MSG91_WIDGET_ID && env.NEXT_PUBLIC_MSG91_TOKEN_AUTH && env.MSG91_AUTH_KEY),
+    // The widget token cannot confirm access tokens; only the account authkey
+    // can. Pasting the token into MSG91_AUTH_KEY makes every correct code fail.
+    authKeyIsWidgetToken: Boolean(env.MSG91_AUTH_KEY) && env.MSG91_AUTH_KEY === env.NEXT_PUBLIC_MSG91_TOKEN_AUTH,
     widgetId: env.NEXT_PUBLIC_MSG91_WIDGET_ID,
     tokenAuth: env.NEXT_PUBLIC_MSG91_TOKEN_AUTH,
     authKey: env.MSG91_AUTH_KEY,

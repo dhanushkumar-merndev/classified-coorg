@@ -1081,3 +1081,13 @@ User chose the MSG91 widget (no own DLT template needed). **This changes SMS-001
 - `E2E_LISTER=agent` lets the journey + integration tests list with the staging agent when the seller's 10 drafts/day are used. Journey now retires its listing in `afterAll` even when a step fails.
 - **Results:** tsc clean; unit + db + integration 140/140; Playwright 58/58 (public, api, a11y, login, admin, full journey). Lint: the 2 known `set-state-in-effect` errors only.
 - Pending (user): real OTP on 9036215854 as the last test; decide captcha on/off; business phone for `NEXT_PUBLIC_CONTACT_PHONE`.
+
+## 37. Production setup (2026-09-26)
+- Vercel project `landincoorg` (Hobby, `bom1`) → https://landincoorg.vercel.app. Production env vars set (production target only; no test vars). `.vercelignore` excludes `.env*`.
+- New Supabase production project `land-in-coorg-prod` (`bbgwsiwushzetifyugoi`, ap-south-1). All 13 migrations applied; auth config pushed without `[auth.sms.test_otp]`. Verified: phone auth on, anon cannot read `properties.owner_id` (42501), real rate limits, 5 guides, 9 locations. Staging project is unchanged.
+- `scripts/supabase-prod.mjs` runs `db push` / `config push` against production using `.env.production.local` (gitignored).
+- Hobby crons are daily only: notification delivery moved to `src/services/notification.service.ts`; `deliverNotificationsSoon()` runs via `after()` after create_enquiry, transition_property and login; `/api/jobs/notifications` is now a daily sweep (bounded 10×50).
+- Pending (remember.md): Tigris prod buckets and key, MSG91 captcha off, first `vercel deploy --prod` (run by the user), super_admin grant after first login, real OTP test, contact phone.
+- First production deploys: Vercel project preset was "Other" (served `public/` only → 404) — `vercel.json` now pins `framework: nextjs`, pnpm install/build.
+- `supabase projects api-keys` masks secret keys unless `--reveal`; the masked key gave "Invalid API key" → DEPENDENCY_FAILED on login. Fixed on Vercel.
+- Per-path CSP + client-side navigation: a document keeps the CSP of the page it was loaded on, so reaching /login by an in-app link blocked MSG91's script. The login form no longer preloads the script (server mode needs none) and, in browser-widget mode, reloads /login once if the document was not loaded there. DEPENDENCY_FAILED now has a friendly message.

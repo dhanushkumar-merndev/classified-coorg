@@ -1,12 +1,16 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Building2, ChevronRight, FileLock2, ShieldCheck, Smartphone } from "lucide-react";
+import { ArrowRight, Building2, ChevronRight, MapPin } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { PropertyGrid } from "@/components/property/property-card";
 import { TypeIcon } from "@/components/property/type-icon";
 import { HeroSearch } from "@/components/search/hero-search";
 import { Button } from "@/components/ui/button";
+import { MobileCollapsibleList } from "@/components/site/mobile-collapsible-list";
 import { SectionHeading } from "@/components/site/page-intro";
+import { RotatingWords } from "@/components/site/rotating-words";
 import { formatDate } from "@/lib/format";
+import { getGuideImage } from "@/lib/guides";
 import { PROPERTY_TYPE_LABELS, toSlug } from "@/lib/labels";
 import {
   getFeaturedListings, getLocationCounts, getLocations, getPublishedArticles, searchListings,
@@ -23,11 +27,7 @@ const POPULAR = [
   { href: "/properties?type=farm-land", label: "Farm land" },
 ];
 
-const PROMISES = [
-  { icon: ShieldCheck, label: "Every listing reviewed" },
-  { icon: Smartphone, label: "Phone-verified sellers" },
-  { icon: FileLock2, label: "Documents kept private" },
-];
+const HERO_WORDS = ["coffee estates", "farmland", "homestays", "residential plots", "villas"] as const;
 
 export default async function HomePage() {
   const [locations, counts, featured, recent, articles] = await Promise.all([
@@ -41,48 +41,68 @@ export default async function HomePage() {
 
   return (
     <>
-      <section className="border-b bg-muted/60">
-        <div className="wrap py-14 md:py-20">
-          <div className="max-w-3xl space-y-4">
-            <h1 className="font-display text-4xl leading-[1.1] text-balance md:text-5xl">
-              Verified land and estates in Coorg
+      <section aria-labelledby="hero-heading" className="relative isolate overflow-hidden bg-[#172c22] text-white">
+        <Image
+          src="/images/hero-coorg-landscape.webp"
+          alt="Forested hills and open fields in Coorg at sunset"
+          fill
+          loading="eager"
+          fetchPriority="high"
+          sizes="100vw"
+          className="-z-20 object-cover object-[60%_center] md:object-center"
+        />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(12,29,22,0.55)_0%,rgba(12,29,22,0.2)_55%,rgba(12,29,22,0.06)_100%)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(12,29,22,0.35),transparent_55%)]" />
+
+        <div className="wrap relative flex min-h-[37.5rem] flex-col justify-center py-12 md:min-h-[38.75rem] md:py-16">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium tracking-[0.18em] text-white/85">LAND & HOMES IN KODAGU</p>
+            <h1 id="hero-heading" className="mt-5 text-[2.75rem] leading-[1.08] font-medium tracking-[-0.035em] sm:text-6xl lg:text-[4.25rem]">
+              Find your place<br />in Coorg.
             </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
-              Coffee estates, farm land, plots and homes. Every listing is checked before it goes live.
+            <p className="mt-5 max-w-md text-base leading-relaxed text-white/90 md:text-lg">
+              <span className="block">
+                Verified <RotatingWords words={HERO_WORDS} className="font-semibold text-white" />
+              </span>
+              A quieter way of life in the hills.
             </p>
           </div>
-          <div className="mt-8">
+
+          <div className="mt-8 w-full text-foreground md:mt-10">
             <HeroSearch locations={towns.map((l) => ({ slug: l.slug, name: l.name }))} />
           </div>
-          <nav aria-label="Popular searches" className="mt-4 flex flex-wrap items-center gap-2">
-            {POPULAR.map((c) => (
-              <Link key={c.href} href={c.href}
-                className="rounded-md border bg-card px-3 py-1.5 text-sm text-foreground/80 transition-colors hover:border-primary hover:text-primary">
-                {c.label}
-              </Link>
-            ))}
-          </nav>
-          <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-3" role="list">
-            {PROMISES.map((p) => (
-              <li key={p.label} className="flex items-center gap-2 text-sm font-medium">
-                <p.icon className="size-4 text-primary" aria-hidden="true" /> {p.label}
-              </li>
-            ))}
-          </ul>
+
+          <div className="mt-5 flex flex-wrap items-start justify-between gap-x-8 gap-y-6">
+            <nav aria-label="Popular searches" className="flex max-w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+              <span className="text-white/75">Popular:</span>
+              {POPULAR.map((c) => (
+                <Link
+                  key={c.href}
+                  href={c.href}
+                  className="rounded-sm py-1 text-white/95 underline decoration-white/40 underline-offset-4 transition-colors hover:text-white hover:decoration-white focus-visible:outline-white"
+                >
+                  {c.label}
+                </Link>
+              ))}
+            </nav>
+            <p className="hidden items-center gap-1.5 py-1 text-xs text-white/80 lg:flex">
+              <MapPin className="size-3.5" aria-hidden="true" /> Coorg, Karnataka
+            </p>
+          </div>
         </div>
       </section>
 
       {featured.length > 0 && (
         <section className="wrap pt-16">
           <SectionHeading title="Featured" aside={<MoreLink href="/properties">View all</MoreLink>} />
-          <PropertyGrid listings={featured} priorityCount={3} />
+          <PropertyGrid listings={featured} priorityCount={3} collapsibleOnMobile={true} />
         </section>
       )}
 
       <section className="wrap py-16">
         <SectionHeading title="Recently verified" aside={<MoreLink href="/properties">View all</MoreLink>} />
         {recent.items.length > 0 ? (
-          <PropertyGrid listings={recent.items.slice(0, 6)} priorityCount={featured.length ? 0 : 3} />
+          <PropertyGrid listings={recent.items.slice(0, 6)} priorityCount={featured.length ? 0 : 3} collapsibleOnMobile={true} />
         ) : (
           <EmptyState icon={Building2} title="The first listings are in review"
             description="Verified properties appear here as soon as our team approves them."
@@ -92,50 +112,69 @@ export default async function HomePage() {
 
       <section className="wrap pb-16">
         <SectionHeading title="Browse by location" aside={<MoreLink href="/locations">All locations</MoreLink>} />
-        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4" role="list">
+        <MobileCollapsibleList initialCount={4} moreLabel="See more locations">
           {towns.map((l) => (
-            <li key={l.id}>
-              <Link href={`/locations/${l.slug}`}
-                className="group flex items-center justify-between gap-2 rounded-md border bg-card px-4 py-3.5 transition-colors hover:border-primary">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium group-hover:text-primary">{l.name}</span>
-                  <span className="text-xs text-muted-foreground">{counts[l.id] ?? 0} {counts[l.id] === 1 ? "listing" : "listings"}</span>
-                </span>
-                <ChevronRight className="size-4 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
-              </Link>
-            </li>
+            <Link
+              key={l.id}
+              href={`/locations/${l.slug}`}
+              className="group flex items-center justify-between gap-2 rounded-md border bg-card px-4 py-3.5 transition-colors hover:border-primary"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-medium group-hover:text-primary">{l.name}</span>
+                <span className="text-xs text-muted-foreground">{counts[l.id] ?? 0} {counts[l.id] === 1 ? "listing" : "listings"}</span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-subtle transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+            </Link>
           ))}
-        </ul>
+        </MobileCollapsibleList>
       </section>
 
       <section className="wrap pb-16">
         <SectionHeading title="Browse by type" aside={<MoreLink href="/property-types">All types</MoreLink>} />
-        <ul className="grid grid-cols-2 gap-3 md:grid-cols-4" role="list">
+        <MobileCollapsibleList initialCount={4} moreLabel="See more property types">
           {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
-            <li key={value}>
-              <Link href={`/properties?type=${toSlug(value)}`}
-                className="group flex items-center gap-3 rounded-md border bg-card p-3 transition-colors hover:border-primary">
-                <TypeIcon type={value} />
-                <span className="min-w-0 truncate text-sm font-medium group-hover:text-primary">{label}</span>
-              </Link>
-            </li>
+            <Link
+              key={value}
+              href={`/properties?type=${toSlug(value)}`}
+              className="group flex items-center gap-3 rounded-md border bg-card p-3 transition-colors hover:border-primary"
+            >
+              <TypeIcon type={value} />
+              <span className="min-w-0 truncate text-sm font-medium group-hover:text-primary">{label}</span>
+            </Link>
           ))}
-        </ul>
+        </MobileCollapsibleList>
       </section>
 
       {articles.length > 0 && (
         <section className="wrap pb-16">
           <SectionHeading title="Before you buy" aside={<MoreLink href="/guides">All guides</MoreLink>} />
-          <ul className="grid gap-4 md:grid-cols-3" role="list">
-            {articles.map((a) => (
-              <li key={a.id}>
-                <Link href={`/guides/${a.slug}`} className="group flex h-full flex-col gap-2 rounded-md border bg-card p-5 transition-colors hover:border-primary">
-                  <span className="text-xs text-muted-foreground">{formatDate(a.published_at)}</span>
-                  <span className="line-clamp-2 font-semibold leading-snug group-hover:text-primary">{a.title}</span>
-                  {a.excerpt && <span className="line-clamp-2 text-sm text-muted-foreground">{a.excerpt}</span>}
-                </Link>
-              </li>
-            ))}
+          <ul className="grid gap-5 md:grid-cols-3" role="list">
+            {articles.map((a) => {
+              const guideImg = getGuideImage(a.slug);
+              return (
+                <li key={a.id}>
+                  <Link
+                    href={`/guides/${a.slug}`}
+                    className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-all hover:border-primary hover:shadow-md"
+                  >
+                    <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted select-none">
+                      <Image
+                        src={guideImg.src}
+                        alt={guideImg.alt}
+                        fill
+                        sizes="(min-width: 768px) 33vw, 100vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col gap-2 p-5">
+                      <span className="text-xs text-muted-foreground">{formatDate(a.published_at)}</span>
+                      <h3 className="line-clamp-2 font-semibold text-base leading-snug group-hover:text-primary">{a.title}</h3>
+                      {a.excerpt && <p className="line-clamp-2 text-sm text-muted-foreground">{a.excerpt}</p>}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

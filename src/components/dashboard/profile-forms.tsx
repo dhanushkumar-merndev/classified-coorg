@@ -37,7 +37,7 @@ export function ProfileForms(props: {
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <Card>
-        <CardHeader><CardTitle>Your details</CardTitle><CardDescription>Shown to sellers when you enquire.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Your details</CardTitle><CardDescription>Our team uses your name when they call you back.</CardDescription></CardHeader>
         <CardContent>
           <form className="space-y-5" onSubmit={name.handleSubmit((v) => start(async () => {
             const r = await updateNameAction(v);

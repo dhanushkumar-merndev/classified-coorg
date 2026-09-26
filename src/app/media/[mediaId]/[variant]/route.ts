@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { PUBLIC_MEDIA_MAX_AGE_SECONDS } from "@/lib/config/uploads";
+import { PUBLIC_IMMUTABLE_MEDIA_CACHE } from "@/lib/config/uploads";
 import { logger } from "@/lib/logger";
 import { notFoundResponse, streamObject } from "@/lib/storage/deliver";
 import { tigrisStorage } from "@/lib/storage/tigris";
@@ -34,9 +34,9 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/media/[medi
   try {
     return await streamObject(tigrisStorage, data.storage_bucket, data[VARIANTS[variant as keyof typeof VARIANTS]], {
       "Content-Type": "image/webp",
-      // Shared caches may keep an approved photo for up to this long after the
-      // listing is hidden (documented removal freshness, GAP-02/10).
-      "Cache-Control": `public, max-age=${PUBLIC_MEDIA_MAX_AGE_SECONDS}, s-maxage=${PUBLIC_MEDIA_MAX_AGE_SECONDS}`,
+      // Shared caches may keep an approved photo for up to PUBLIC_MEDIA_MAX_AGE_SECONDS
+      // after the listing is hidden (documented removal freshness, GAP-02/10).
+      "Cache-Control": PUBLIC_IMMUTABLE_MEDIA_CACHE,
       ETag: `"${mediaId}-${variant}"`,
     });
   } catch {

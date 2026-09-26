@@ -4,16 +4,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Check, Loader2, Star, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Controller, useForm, type Control } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
-  arrangeMediaAction, ownerTransitionAction, removeDocumentAction, removeMediaAction, saveDraftAction, saveFeaturesAction,
+  arrangeMediaAction, ownerTransitionAction, removeDocumentAction, removeMediaAction, removeVideoAction, saveDraftAction,
+  saveFeaturesAction,
 } from "@/actions/listing";
 import { PropertyImage } from "@/components/property/property-image";
+import { VideoTour } from "@/components/property/video-tour";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ListingDetailsEditor } from "@/components/dashboard/listing-details-editor";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,18 +26,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AREA_UNIT_LABELS, formatArea, formatPriceFull } from "@/lib/format";
 import {
-  DOCUMENT_TYPE_LABELS, FEATURE_OPTIONS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, SUBMISSION_GAP_LABELS,
+  DOCUMENT_TYPE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, SUBMISSION_GAP_LABELS,
+  VIDEO_ERROR_FALLBACK, VIDEO_ERROR_LABELS,
 } from "@/lib/labels";
-import { mediaUrl } from "@/lib/site";
+import { mediaUrl, videoUrl } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import type { OwnListingDetail } from "@/repositories/account";
 import type { LocationRow } from "@/repositories/public-listings";
 import { AREA_UNITS, PROPERTY_TYPES, propertyDraftPatchSchema, SELLER_TYPES, type PropertyDraftPatch } from "@/schemas/property.schema";
-import { DOCUMENT_TYPES, IMAGE_LIMITS } from "@/lib/config/uploads";
+import { DOCUMENT_TYPES, IMAGE_LIMITS, VIDEO_LIMITS } from "@/lib/config/uploads";
+import { STORED_DETAIL_OPTIONS, listingDetailGaps } from "@/lib/listing/details";
 import { textHasContactDetails } from "@/lib/listing/contact-details";
 import { PHOTO_RATIO_HINT, PHOTO_RULES, photoOrientation, photoSizeProblem, photoSummary } from "@/lib/media/photo-rules";
 
 const DEBOUNCE_MS = 750;
+const VIDEO_POLL_MS = 4000;
 const MAX_WAIT_MS = 3000;
 
 type FormValues = PropertyDraftPatch;
@@ -50,7 +56,8 @@ function toFormValues(listing: OwnListingDetail): FormValues {
   };
 }
 
-function computeGaps(v: FormValues, media: Array<{ width: number; height: number }>, hasCover: boolean, docCount: number): string[] {
+function computeGaps(v: FormValues, media: Array<{ width: number; height: number }>, hasCover: boolean, docCount: number,
+  videoProcessing: boolean): string[] {
   const gaps: string[] = [];
   if (!v.title || v.title.trim().length < 10) gaps.push("title");
   if (!v.description || v.description.trim().length < 50) gaps.push("description");
@@ -63,6 +70,7 @@ function computeGaps(v: FormValues, media: Array<{ width: number; height: number
   gaps.push(...photoSummary(media).gaps);
   if (!hasCover) gaps.push("cover_photo");
   if (docCount === 0) gaps.push("documents");
+  if (videoProcessing) gaps.push("video_processing");
   return gaps;
 }
 
@@ -83,6 +91,42 @@ async function checkPhotoLocally(file: File): Promise<string | null> {
   return photoSizeProblem(width, height);
 }
 
+/** Type, size, length and resolution, before any upload. The server checks
+ *  again; a file the browser cannot decode (e.g. HEVC in some browsers) is
+ *  left to the server. */
+async function checkVideoLocally(file: File): Promise<string | null> {
+  if (!(VIDEO_LIMITS.acceptedMimeTypes as readonly string[]).includes(file.type)) return "Use an MP4, MOV or WebM video.";
+  if (file.size > VIDEO_LIMITS.maxBytes) return "Larger than 500 MB. Export a shorter or 1080p copy and try again.";
+  const url = URL.createObjectURL(file);
+  try {
+    const meta = await new Promise<{ duration: number; width: number; height: number } | null>((resolve) => {
+      const probe = document.createElement("video");
+      probe.preload = "metadata";
+      probe.muted = true;
+      const timer = setTimeout(() => resolve(null), 8000);
+      probe.onloadedmetadata = () => {
+        clearTimeout(timer);
+        resolve({ duration: probe.duration, width: probe.videoWidth, height: probe.videoHeight });
+      };
+      probe.onerror = () => {
+        clearTimeout(timer);
+        resolve(null);
+      };
+      probe.src = url;
+    });
+    if (!meta) return null;
+    if (Number.isFinite(meta.duration) && meta.duration > VIDEO_LIMITS.maxDurationSeconds + VIDEO_LIMITS.durationToleranceSeconds) {
+      return "Longer than 2 minutes. Trim it and try again.";
+    }
+    if (meta.width && meta.height && Math.min(meta.width, meta.height) > VIDEO_LIMITS.maxShortSide) {
+      return "Resolution is above 4K. Export at 4K or 1080p and try again.";
+    }
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function uploadWithProgress(url: string, headers: Record<string, string>, file: File, onProgress: (pct: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -101,8 +145,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
   const router = useRouter();
   const versionRef = useRef(listing.version);
   const savedRef = useRef<FormValues>(toFormValues(listing));
-  const savingRef = useRef(false);
-  const dirtyDuringSaveRef = useRef(false);
+  const pendingDraftSaveRef = useRef<ReturnType<typeof saveDraftAction> | null>(null);
   const hasUnsavedRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const maxWaitRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -112,8 +155,9 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [docType, setDocType] = useState<string>(DOCUMENT_TYPES[0]);
   const [features, setFeatures] = useState<Record<string, string>>(() =>
-    Object.fromEntries(FEATURE_OPTIONS.map((f) => [f.key, listing.features.find((x) => x.feature_key === f.key)?.feature_value ?? ""])));
+    Object.fromEntries(STORED_DETAIL_OPTIONS.map((f) => [f.key, listing.features.find((x) => x.feature_key === f.key)?.feature_value ?? ""])));
   const [featuresSaving, setFeaturesSaving] = useState(false);
+  const featuresDirtyRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -131,22 +175,30 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
     return diff;
   }
 
-  async function flush() {
+  async function flush(): Promise<boolean> {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (maxWaitRef.current) clearTimeout(maxWaitRef.current);
     debounceRef.current = undefined;
     maxWaitRef.current = undefined;
-    if (savingRef.current) { dirtyDuringSaveRef.current = true; return; }
+    if (pendingDraftSaveRef.current) {
+      const previous = await pendingDraftSaveRef.current;
+      if (previous.error) return false;
+      return flush();
+    }
 
     const diff = computeDiff();
     const errors = form.formState.errors;
     const clean = Object.fromEntries(Object.entries(diff).filter(([k]) => !(k in errors)));
-    if (Object.keys(clean).length === 0) { if (Object.keys(diff).length === 0) hasUnsavedRef.current = false; return; }
+    if (Object.keys(clean).length === 0) {
+      if (Object.keys(diff).length === 0) hasUnsavedRef.current = false;
+      return Object.keys(errors).length === 0;
+    }
 
-    savingRef.current = true;
     setSaveState("saving");
-    const r = await saveDraftAction({ propertyId: listing.id, expectedVersion: versionRef.current, patch: clean });
-    savingRef.current = false;
+    const pending = saveDraftAction({ propertyId: listing.id, expectedVersion: versionRef.current, patch: clean });
+    pendingDraftSaveRef.current = pending;
+    const r = await pending;
+    pendingDraftSaveRef.current = null;
     if (r.error) {
       setSaveState("error");
       if (r.error.code === "VERSION_CONFLICT") setConflict(true);
@@ -157,7 +209,8 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
       setSaveState("saved");
       if (Object.keys(computeDiff()).length === 0) hasUnsavedRef.current = false;
     }
-    if (dirtyDuringSaveRef.current) { dirtyDuringSaveRef.current = false; schedule(); }
+    if (r.error) return false;
+    return Object.keys(computeDiff()).length > 0 ? flush() : true;
   }
 
   function schedule() {
@@ -174,7 +227,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
   }, []);
 
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (hasUnsavedRef.current) e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => { if (hasUnsavedRef.current || featuresDirtyRef.current) e.preventDefault(); };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
@@ -182,7 +235,28 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
   const values = form.watch();
   const mediaSorted = [...listing.media].sort((a, b) => a.sort_order - b.sort_order);
   const hasCover = mediaSorted.some((m) => m.is_cover);
-  const gaps = computeGaps(values, mediaSorted, hasCover, listing.documents.length);
+  const video = listing.video?.[0] ?? null;
+  const gaps = [...computeGaps(values, mediaSorted, hasCover, listing.documents.length, video?.state === "processing"),
+    ...listingDetailGaps(values, features)];
+
+  // While the video transcodes, poll its status; the page refreshes when it
+  // is ready or failed. Polling also restarts any stalled transcode job.
+  const processingVideoId = video?.state === "processing" ? video.id : null;
+  useEffect(() => {
+    if (!processingVideoId) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/videos/${processingVideoId}`, { cache: "no-store" });
+        const body = await res.json();
+        if (body.data && body.data.state !== "processing") router.refresh();
+        if (body.error?.code === "MEDIA_NOT_FOUND") router.refresh();
+      } catch {
+        // Try again on the next tick.
+      }
+    }, VIDEO_POLL_MS);
+    return () => clearInterval(timer);
+  }, [processingVideoId, router]);
+
   const photos = photoSummary(mediaSorted);
 
   async function uploadPhoto(file: File) {
@@ -237,25 +311,65 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
     }
   }
 
+  async function uploadVideo(file: File) {
+    const id = crypto.randomUUID();
+    const problem = await checkVideoLocally(file);
+    if (problem) {
+      setUploads((u) => [...u, { id, name: file.name, progress: 0, status: "error", error: problem }]);
+      return;
+    }
+    setUploads((u) => [...u, { id, name: file.name, progress: 0, status: "uploading" }]);
+    try {
+      const initRes = await fetch("/api/uploads", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "property_video", propertyId: listing.id, fileName: file.name, contentType: file.type, size: file.size }),
+      });
+      const init = await initRes.json();
+      if (init.error) throw new Error(init.error.message);
+      await uploadWithProgress(init.data.upload.url, init.data.upload.headers, file,
+        (pct) => setUploads((u) => u.map((x) => (x.id === id ? { ...x, progress: pct } : x))));
+      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: "finalizing" } : x)));
+      const finRes = await fetch(`/api/uploads/${init.data.sessionId}/finalize`, { method: "POST" });
+      const fin = await finRes.json();
+      if (fin.error) throw new Error(fin.error.message);
+      setUploads((u) => u.filter((x) => x.id !== id));
+      router.refresh();
+    } catch (error) {
+      setUploads((u) => u.map((x) => (x.id === id ? { ...x, status: "error", error: (error as Error).message } : x)));
+    }
+  }
+
+  async function removeVideo(videoId: string) {
+    const r = await removeVideoAction({ videoId });
+    if (r.error) toast.error(r.error.message); else router.refresh();
+  }
+
   async function reorder(newOrder: string[], coverId: string) {
     const r = await arrangeMediaAction({ propertyId: listing.id, orderedIds: newOrder, coverId });
     if (r.error) toast.error(r.error.message); else router.refresh();
   }
 
-  async function saveFeatures() {
+  async function saveFeatures(notify = true) {
     setFeaturesSaving(true);
     const r = await saveFeaturesAction({ propertyId: listing.id, features });
     setFeaturesSaving(false);
-    if (r.error) toast.error(r.error.message); else toast.success("Features saved");
+    if (r.error) {
+      toast.error(r.error.message);
+      return false;
+    }
+    featuresDirtyRef.current = false;
+    if (notify) toast.success("Amenities and features saved");
+    return true;
   }
 
   async function submit() {
-    await flush();
     if (gaps.length > 0) {
       toast.error("Some required details are missing", { description: gaps.map((g) => SUBMISSION_GAP_LABELS[g]).join(", ") });
       return;
     }
     setSubmitting(true);
+    if (!(await flush())) { setSubmitting(false); return; }
+    if (!(await saveFeatures(false))) { setSubmitting(false); return; }
     const r = await ownerTransitionAction({ propertyId: listing.id, action: "submit", expectedVersion: versionRef.current, requestId: crypto.randomUUID() });
     setSubmitting(false);
     if (r.error) {
@@ -293,8 +407,9 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
         <TabsList className="flex-wrap">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="location">Location</TabsTrigger>
-          <TabsTrigger value="features">Features</TabsTrigger>
+          <TabsTrigger value="features">Amenities & features</TabsTrigger>
           <TabsTrigger value="photos">Photos ({mediaSorted.length})</TabsTrigger>
+          <TabsTrigger value="video">Video{video ? (video.state === "processing" ? " (processing)" : video.state === "ready" ? " (1)" : " (failed)") : ""}</TabsTrigger>
           <TabsTrigger value="documents">Documents ({listing.documents.length})</TabsTrigger>
           <TabsTrigger value="preview">Preview & submit</TabsTrigger>
         </TabsList>
@@ -312,6 +427,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="description">Description</FieldLabel>
                 <Textarea id="description" value={field.value ?? ""} onChange={field.onChange} rows={6} maxLength={5000} />
+                <p className="text-xs text-muted-foreground">Describe the property without exact addresses, directions, map links or contact details.</p>
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </Field>
             )} />
@@ -378,47 +494,36 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
           <Card><CardContent className="space-y-5 pt-6">
             <Controller name="location_id" control={form.control} render={({ field }) => (
               <Field>
-                <FieldLabel>Location</FieldLabel>
+                <FieldLabel>General area shown to buyers</FieldLabel>
                 <Select value={field.value ?? ""} onValueChange={(v) => { if (v) field.onChange(v); }}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select a location" /></SelectTrigger>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select a general area" /></SelectTrigger>
                   <SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
             )} />
             <Controller name="address_text" control={form.control} render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="address">Address (optional, not shown publicly)</FieldLabel>
+                <FieldLabel htmlFor="address">Exact address (private — for our team only)</FieldLabel>
                 <Textarea id="address" value={field.value ?? ""} onChange={field.onChange} rows={3} maxLength={300} />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </Field>
             )} />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <TriState label="Road access" name="road_access" control={form.control} />
-              <TriState label="Water available" name="water_available" control={form.control} />
-              <TriState label="Electricity" name="electricity_available" control={form.control} />
-            </div>
+            <p className="text-sm text-muted-foreground">Buyers see only the general area. Land in Coorg coordinates enquiries and shares directions when arranging a site visit.</p>
           </CardContent></Card>
         </TabsContent>
 
         <TabsContent value="features" className="space-y-5">
-          <Card><CardContent className="space-y-4 pt-6">
-            {FEATURE_OPTIONS.map((f) => (
-              <div key={f.key} className="grid items-center gap-2 sm:grid-cols-[2fr_1fr]">
-                {f.kind === "boolean" ? (
-                  <div className="flex items-center gap-2 sm:col-span-2">
-                    <Checkbox id={f.key} checked={features[f.key] === "true"} onCheckedChange={(c) => setFeatures((s) => ({ ...s, [f.key]: c === true ? "true" : "" }))} />
-                    <Label htmlFor={f.key} className="font-normal">{f.label}</Label>
-                  </div>
-                ) : (
-                  <>
-                    <Label htmlFor={f.key} className="font-normal">{f.label}</Label>
-                    <Input id={f.key} value={features[f.key] ?? ""} onChange={(e) => setFeatures((s) => ({ ...s, [f.key]: e.target.value }))} maxLength={200} />
-                  </>
-                )}
-              </div>
-            ))}
-            <Button onClick={saveFeatures} disabled={featuresSaving}>{featuresSaving ? "Saving…" : "Save features"}</Button>
-          </CardContent></Card>
+          <fieldset disabled={featuresSaving || submitting} className="space-y-5">
+            <ListingDetailsEditor core={values} values={features}
+              onCoreChange={(key, value) => form.setValue(key, value, { shouldDirty: true, shouldValidate: true })}
+              onChange={(key, value) => {
+                featuresDirtyRef.current = true;
+                setFeatures((current) => ({ ...current, [key]: value }));
+              }} />
+          </fieldset>
+          <Button onClick={async () => { if (await flush()) await saveFeatures(); }} disabled={featuresSaving || submitting}>
+            {featuresSaving ? "Saving…" : "Save amenities & features"}
+          </Button>
         </TabsContent>
 
         <TabsContent value="photos" className="space-y-5">
@@ -458,6 +563,62 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
           </CardContent></Card>
         </TabsContent>
 
+        <TabsContent value="video" className="space-y-5">
+          <Card><CardContent className="space-y-4 pt-6">
+            <p className="text-sm text-muted-foreground">
+              Optional. One video tour of up to 2 minutes (MP4, MOV or WebM, up to 500 MB, up to 4K). We convert it to
+              1080p, 720p and 360p so buyers get fast, smooth playback on any connection.
+            </p>
+
+            {video?.state === "ready" && (
+              <div className="space-y-3">
+                <VideoTour
+                  title={values.title || "this listing"}
+                  src={videoUrl(video.id, "master.m3u8", true)}
+                  posterUrl={videoUrl(video.id, "poster.jpg", true)}
+                  durationSeconds={video.duration_seconds === null ? null : Number(video.duration_seconds)}
+                  shortSide={video.width && video.height ? Math.min(video.width, video.height) : null}
+                />
+                <Button variant="destructive" size="sm" onClick={() => removeVideo(video.id)}>
+                  <Trash2 /> Remove video
+                </Button>
+              </div>
+            )}
+
+            {video?.state === "processing" && (
+              <Alert>
+                <Loader2 className="animate-spin" />
+                <AlertTitle>Processing your video</AlertTitle>
+                <AlertDescription>
+                  This usually takes a minute or two. You can keep editing; submit becomes available when it is done.
+                  <Button variant="outline" size="sm" className="mt-2" onClick={() => removeVideo(video.id)}>Cancel and remove</Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {video?.state === "failed" && (
+              <Alert variant="destructive">
+                <AlertTriangle />
+                <AlertTitle>This video could not be processed</AlertTitle>
+                <AlertDescription>
+                  {(video.error_code && VIDEO_ERROR_LABELS[video.error_code]) ?? VIDEO_ERROR_FALLBACK} Uploading a new video replaces it.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {(!video || video.state === "failed") && (
+              <div>
+                <Label htmlFor="video-input" className="mb-2 block font-normal text-muted-foreground">
+                  Walk buyers through the land: entrance, boundaries, views, water and road access.
+                </Label>
+                <Input id="video-input" type="file" accept="video/mp4,video/quicktime,video/webm" className="max-w-sm"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadVideo(f); e.target.value = ""; }} />
+              </div>
+            )}
+            <UploadProgressList uploads={uploads} />
+          </CardContent></Card>
+        </TabsContent>
+
         <TabsContent value="documents" className="space-y-5">
           <Card><CardContent className="space-y-4 pt-6">
             <p className="text-sm text-muted-foreground">Ownership and legal documents, reviewed privately. Never shown to buyers.</p>
@@ -489,7 +650,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
             <CardHeader><CardTitle>Ready to submit?</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-1.5 text-sm">
-                {Object.entries(SUBMISSION_GAP_LABELS).filter(([k]) => k !== "uploads_in_progress").map(([key, label]) => (
+                {Object.entries(SUBMISSION_GAP_LABELS).filter(([k]) => k !== "uploads_in_progress" && k !== "video_processing").map(([key, label]) => (
                   <li key={key} className="flex items-center gap-2">
                     {gaps.includes(key) ? <X className="size-4 text-destructive" /> : <Check className="size-4 text-success" />}
                     <span className={gaps.includes(key) ? "text-muted-foreground" : ""}>{label}</span>
@@ -509,25 +670,6 @@ function swap(ids: string[], a: number, b: number): string[] {
   const next = [...ids];
   [next[a], next[b]] = [next[b]!, next[a]!];
   return next;
-}
-
-function TriState({ label, name, control }: { label: string; name: "road_access" | "water_available" | "electricity_available"; control: Control<FormValues> }) {
-  return (
-    <Controller name={name} control={control} render={({ field }) => (
-      <Field>
-        <FieldLabel>{label}</FieldLabel>
-        <Select value={field.value === null || field.value === undefined ? "unset" : String(field.value)}
-          onValueChange={(v) => field.onChange(v === "unset" ? null : v === "true")}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="unset">Not specified</SelectItem>
-            <SelectItem value="true">Yes</SelectItem>
-            <SelectItem value="false">No</SelectItem>
-          </SelectContent>
-        </Select>
-      </Field>
-    )} />
-  );
 }
 
 function SaveIndicator({ state }: { state: "idle" | "saving" | "saved" | "error" }) {

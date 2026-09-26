@@ -149,6 +149,9 @@ export class TestDb {
       await this.finalizeUpload(ownerId, id, "property_image", { width: w, height: h });
     }
     await this.finalizeUpload(ownerId, id, "property_document");
+    await this.rows(user(ownerId), "update public.properties set road_access = true, water_available = true, electricity_available = true where id = $1", [id]);
+    await this.rows(user(ownerId), `insert into public.property_features (property_id, feature_key, feature_value)
+      select $1, k, 'true' from unnest(array['fenced', 'drying_yard', 'shade_trees', 'pepper_vines', 'fruit_trees', 'irrigation']) k`, [id]);
     return id;
   }
 

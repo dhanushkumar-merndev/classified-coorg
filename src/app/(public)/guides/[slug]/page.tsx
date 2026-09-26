@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -6,6 +7,7 @@ import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { formatDate } from "@/lib/format";
+import { getGuideImage } from "@/lib/guides";
 import { breadcrumbLd, jsonLd, truncate } from "@/lib/seo";
 import { siteUrl } from "@/lib/site";
 import { getArticleBySlug } from "@/repositories/public-listings";
@@ -84,7 +86,21 @@ export default async function GuidePage({ params }: PageProps<"/guides/[slug]">)
         <p className="mt-3 text-sm text-muted-foreground">
           {article.author_name ? `By ${article.author_name} · ` : ""}Updated {formatDate(article.updated_at)}
         </p>
-        {article.excerpt && <p className="mt-6 text-lg text-muted-foreground">{article.excerpt}</p>}
+        {article.excerpt && <p className="mt-6 text-lg text-muted-foreground leading-relaxed">{article.excerpt}</p>}
+
+        {/* Featured Guide Topic Image */}
+        <div className="relative mt-8 aspect-[16/9] w-full overflow-hidden rounded-xl border bg-muted shadow-sm select-none">
+          <Image
+            src={getGuideImage(article.slug).src}
+            alt={getGuideImage(article.slug).alt}
+            fill
+            loading="eager"
+            fetchPriority="high"
+            sizes="(min-width: 1024px) 768px, 100vw"
+            className="object-cover"
+          />
+        </div>
+
         <div className="mt-8 space-y-4 text-base leading-7 text-foreground/90">{renderBody(article.body ?? "")}</div>
         <p className="mt-10 rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">
           General information, not legal advice. Have a local advocate check the documents before you buy.

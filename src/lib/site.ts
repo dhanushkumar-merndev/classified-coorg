@@ -13,6 +13,12 @@ export function mediaUrl(mediaId: string, variant: "full" | "thumb" = "full"): s
   return `/media/${mediaId}/${variant}`;
 }
 
+/** HLS master playlist (or poster) of a listing video. `preview` serves the
+ *  owner/admin copy of a video whose listing is not public yet. */
+export function videoUrl(videoId: string, file: "master.m3u8" | "poster.jpg" = "master.m3u8", preview = false): string {
+  return `${preview ? "/api/media/preview/video" : "/media/video"}/${videoId}/${file}`;
+}
+
 export function propertyPath(slug: string): string {
   return `/property/${slug}`;
 }

@@ -73,6 +73,7 @@ const SAFE_MESSAGES: Partial<Record<ErrorCode, string>> = {
   UNSUPPORTED_MEDIA_TYPE: "This file type is not supported.",
   UPLOAD_REJECTED: "This file could not be accepted.",
   SMS_DELIVERY_FAILED: "We could not send the code. Please try again shortly.",
+  DEPENDENCY_FAILED: "Something on our side is not responding. Please try again in a minute.",
   VALIDATION_FAILED: "Please check the highlighted fields.",
   INTERNAL: "Something went wrong. Please try again.",
 };

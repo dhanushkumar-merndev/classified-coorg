@@ -5,14 +5,15 @@ import { z } from "zod";
 import { runAction } from "@/lib/api/response";
 import { LISTING_ROLES, requireActor } from "@/lib/auth/dal";
 import { AppError, fromDatabaseError } from "@/lib/errors";
-import { FEATURE_OPTIONS } from "@/lib/labels";
+import { STORED_DETAIL_OPTIONS } from "@/lib/listing/details";
+import { textHasContactDetails } from "@/lib/listing/contact-details";
 import { createSessionClient } from "@/lib/supabase/server";
 import { createDraft, transitionProperty, updateDraft } from "@/services/property.service";
 import { CACHE_TAGS } from "@/repositories/public-listings";
 import { PROPERTY_TYPES } from "@/schemas/property.schema";
 
 // Seller listing actions (property.createDraft/updateDraft/submit/markSold/
-// archive/delete, media.reorder/setCover/remove, document.remove). Run with
+// archive/delete, media.reorder/setCover/remove, document.remove, video.remove). Run with
 // the seller's session: RLS, the edit-lock trigger and transition_property()
 // decide; public caches are invalidated whenever visibility can change.
 
@@ -98,24 +99,39 @@ export async function removeDocumentAction(input: { documentId: string }) {
   });
 }
 
-const featureKeys = new Set(FEATURE_OPTIONS.map((f) => f.key));
+export async function removeVideoAction(input: { videoId: string }) {
+  return runAction("video.remove", async () => {
+    await requireActor({ anyRole: LISTING_ROLES });
+    const supabase = await createSessionClient();
+    const { error } = await supabase.rpc("remove_property_video", { p_video_id: input.videoId });
+    if (error) throw fromDatabaseError(error);
+    return { ok: true };
+  });
+}
+
+const featureOptions = new Map(STORED_DETAIL_OPTIONS.map((f) => [f.key, f]));
 const featuresInput = z.strictObject({
   propertyId: z.uuid(),
   features: z.record(z.string(), z.string().trim().max(200).nullable()),
 });
 
-/** Replaces the listing's features with the given allowlisted key/value map. */
+/** Replaces editable public details while preserving legacy private entries. */
 export async function saveFeaturesAction(input: unknown) {
   return runAction("property.features", async () => {
     const parsed = featuresInput.safeParse(input);
-    if (!parsed.success || Object.keys(parsed.data.features).some((k) => !featureKeys.has(k))) {
+    if (!parsed.success || Object.entries(parsed.data.features).some(([key, value]) => {
+      const option = featureOptions.get(key);
+      return !option || (option.kind === "boolean" && value !== null && !["", "true", "false"].includes(value))
+        || (value !== null && textHasContactDetails(value));
+    })) {
       throw new AppError("VALIDATION_FAILED", { detail: "features" });
     }
     await requireActor({ anyRole: LISTING_ROLES });
     const supabase = await createSessionClient();
     const entries = Object.entries(parsed.data.features).filter(([, v]) => v !== null && v !== "" && v !== "false");
     const keep = entries.map(([k]) => k);
-    const del = supabase.from("property_features").delete().eq("property_id", parsed.data.propertyId);
+    const del = supabase.from("property_features").delete().eq("property_id", parsed.data.propertyId)
+      .in("feature_key", [...featureOptions.keys()]);
     const { error: delError } = keep.length ? await del.not("feature_key", "in", `(${keep.join(",")})`) : await del;
     if (delError) throw fromDatabaseError(delError);
     if (entries.length) {

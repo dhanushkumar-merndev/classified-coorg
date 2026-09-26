@@ -4,9 +4,13 @@ import { ExternalLink } from "lucide-react";
 import { ReviewActions } from "@/components/admin/review-actions";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatusBadge } from "@/components/property/badges";
+import { VideoTour } from "@/components/property/video-tour";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatArea, formatDateTime, formatPriceFull } from "@/lib/format";
-import { DOCUMENT_TYPE_LABELS, FEATURE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS } from "@/lib/labels";
+import {
+  DOCUMENT_TYPE_LABELS, FEATURE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, VIDEO_ERROR_FALLBACK, VIDEO_ERROR_LABELS,
+} from "@/lib/labels";
+import { videoUrl } from "@/lib/site";
 import { getReviewDetail } from "@/repositories/admin";
 
 export const metadata = { title: "Review listing" };
@@ -20,10 +24,13 @@ export default async function ReviewPage({ params }: PageProps<"/admin/verificat
   const media = p.media as unknown as Array<{ id: string; is_cover: boolean; alt_text: string | null }>;
   const docs = p.documents as unknown as Array<{ id: string; document_type: string; original_filename: string | null }>;
   const features = p.features as unknown as Array<{ feature_key: string; feature_value: string | null }>;
+  const video = (p.video as unknown as Array<{
+    id: string; state: string; error_code: string | null; duration_seconds: number | null; width: number | null; height: number | null;
+  }>)[0] ?? null;
 
   return (
     <>
-      <PageHeader title={p.title || "Untitled draft"} description="Review the submitted details, photos and documents."
+      <PageHeader title={p.title || "Untitled draft"} description="Review the submitted details, photos, video and documents."
         actions={<StatusBadge status={p.status} />} />
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
@@ -57,6 +64,28 @@ export default async function ReviewPage({ params }: PageProps<"/admin/verificat
               {media.length === 0 && <p className="text-sm text-muted-foreground">No photos.</p>}
             </CardContent>
           </Card>
+          {video && (
+            <Card>
+              <CardHeader><CardTitle>Video tour</CardTitle></CardHeader>
+              <CardContent>
+                {video.state === "ready" ? (
+                  <VideoTour
+                    title={p.title ?? "this listing"}
+                    src={videoUrl(video.id, "master.m3u8", true)}
+                    posterUrl={videoUrl(video.id, "poster.jpg", true)}
+                    durationSeconds={video.duration_seconds === null ? null : Number(video.duration_seconds)}
+                    shortSide={video.width && video.height ? Math.min(video.width, video.height) : null}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {video.state === "processing"
+                      ? "Still processing."
+                      : `Failed: ${(video.error_code && VIDEO_ERROR_LABELS[video.error_code]) ?? VIDEO_ERROR_FALLBACK}`}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader><CardTitle>Documents ({docs.length})</CardTitle></CardHeader>
             <CardContent>

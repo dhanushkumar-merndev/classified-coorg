@@ -2,9 +2,12 @@ import { isAuthorizedJob } from "@/lib/jobs";
 import { logger } from "@/lib/logger";
 import { tigrisStorage } from "@/lib/storage/tigris";
 import { createServiceClient } from "@/lib/supabase/server";
+import { runVideoMaintenance } from "@/services/video.service";
 
 // Scheduled cleanup: expires stale upload sessions, deletes their quarantine
-// objects, and trims rate-limit and webhook-receipt rows.
+// objects, and trims rate-limit and webhook-receipt rows. Also the safety net
+// for video transcoding: fails stuck videos, deletes released sources and
+// restarts stalled jobs.
 export async function GET(request: Request) {
   if (!isAuthorizedJob(request)) return new Response("Unauthorized", { status: 401 });
   const { data, error } = await createServiceClient().rpc("run_maintenance", { p_batch: 500 });
@@ -17,5 +20,12 @@ export async function GET(request: Request) {
   for (const o of result.expired_uploads) {
     try { await tigrisStorage.delete(o.bucket, o.key); deleted++; } catch (e) { logger.warn("job.maintenance.delete", { key: o.key, error: e }); }
   }
-  return Response.json({ ...result, expired_uploads: result.expired_uploads.length, objects_deleted: deleted });
+  let videos: Awaited<ReturnType<typeof runVideoMaintenance>> | { error: string };
+  try {
+    videos = await runVideoMaintenance();
+  } catch (e) {
+    logger.error("job.maintenance.videos", { error: e });
+    videos = { error: "video_maintenance_failed" };
+  }
+  return Response.json({ ...result, expired_uploads: result.expired_uploads.length, objects_deleted: deleted, videos });
 }

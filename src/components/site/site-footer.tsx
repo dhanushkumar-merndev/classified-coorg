@@ -42,7 +42,7 @@ export function SiteFooter() {
             <ul className="space-y-2">
               {col.links.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
+                  <Link href={l.href} prefetch={l.href.startsWith("/dashboard") ? false : undefined} className="text-sm text-muted-foreground transition-colors hover:text-foreground">{l.label}</Link>
                 </li>
               ))}
             </ul>
