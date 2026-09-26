@@ -333,6 +333,17 @@ describe("rate limiter", () => {
     expect(await call("fp-b")).toBe(true);
   });
 
+  test("login codes: a phone that keeps guessing is locked out for the day", async () => {
+    const call = (phone: string) =>
+      db.rows<{ r: { allowed: boolean; retry_after_seconds: number } }>(service,
+        "select public.consume_rate_limit('otp_verify_phone_daily', $1) as r", [phone]).then((rows) => rows[0].r);
+    for (let i = 0; i < 20; i++) expect((await call("+919000000077")).allowed).toBe(true);
+    const banned = await call("+919000000077");
+    expect(banned.allowed).toBe(false);
+    expect(banned.retry_after_seconds).toBeGreaterThan(86_000);
+    expect((await call("+919000000078")).allowed).toBe(true);
+  });
+
   test("fixed window is atomic per subject and reports retry time", async () => {
     const call = (subject: string) =>
       db.rows<{ r: { allowed: boolean; retry_after_seconds: number } }>(service,

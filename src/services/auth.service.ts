@@ -18,11 +18,30 @@ import { widgetMode, widgetSendOtp, widgetVerifyOtp } from "@/services/sms/msg91
 
 export const RESEND_COOLDOWN_SECONDS = 60;
 
+// Each short window has a daily twin: the short one absorbs honest retries,
+// the daily one is the abuse ban (up to 24 h) for a browser, network or
+// phone that keeps going. Policies: app.rate_limit_policies.
+async function enforceFingerprintLimits(fingerprint: string) {
+  await enforceRateLimit("otp_request_fingerprint", fingerprint, "OTP_RATE_LIMITED");
+  await enforceRateLimit("otp_request_fingerprint_daily", fingerprint, "OTP_RATE_LIMITED");
+}
+
+async function enforceRequestIpLimits(ip: string) {
+  await enforceRateLimit("otp_request_ip", ip, "OTP_RATE_LIMITED");
+  await enforceRateLimit("otp_request_ip_daily", ip, "OTP_RATE_LIMITED");
+}
+
+async function enforceVerifyLimits(phone: string, ip: string | null) {
+  await enforceRateLimit("otp_verify_phone", phone, "OTP_RATE_LIMITED");
+  await enforceRateLimit("otp_verify_phone_daily", phone, "OTP_RATE_LIMITED");
+  if (ip) await enforceRateLimit("otp_verify_ip", ip, "OTP_RATE_LIMITED");
+}
+
 export async function requestOtp(input: { phone: unknown; ip: string | null; fingerprint?: string; fingerprintChecked?: boolean }) {
   const phone = normalizePhone(input.phone);
   if (!phone) throw new AppError("INVALID_PHONE");
-  if (input.fingerprint && !input.fingerprintChecked) await enforceRateLimit("otp_request_fingerprint", input.fingerprint, "OTP_RATE_LIMITED");
-  if (input.ip) await enforceRateLimit("otp_request_ip", input.ip, "OTP_RATE_LIMITED");
+  if (input.fingerprint && !input.fingerprintChecked) await enforceFingerprintLimits(input.fingerprint);
+  if (input.ip) await enforceRequestIpLimits(input.ip);
 
   const supabase = await createSessionClient();
   const { error } = await supabase.auth.signInWithOtp({ phone, options: { channel: "sms", shouldCreateUser: true } });
@@ -43,8 +62,7 @@ export async function verifyOtp(input: { phone: unknown; token: unknown; next?: 
   // Keep the code as a string: leading zeros are significant (AUTH-003).
   if (!isValidOtp(input.token)) throw new AppError("INVALID_OTP");
 
-  await enforceRateLimit("otp_verify_phone", phone, "OTP_RATE_LIMITED");
-  if (input.ip) await enforceRateLimit("otp_verify_ip", input.ip, "OTP_RATE_LIMITED");
+  await enforceVerifyLimits(phone, input.ip);
 
   const supabase = await createSessionClient();
   const { data, error } = await supabase.auth.verifyOtp({ phone, token: input.token, type: "sms" });
@@ -78,11 +96,11 @@ export async function startLogin(input: { phone: unknown; ip: string | null; fin
   const phone = normalizePhone(input.phone);
   if (!phone) throw new AppError("INVALID_PHONE");
   // 2 code requests per minute per browser (product decision), every path.
-  if (input.fingerprint) await enforceRateLimit("otp_request_fingerprint", input.fingerprint, "OTP_RATE_LIMITED");
+  if (input.fingerprint) await enforceFingerprintLimits(input.fingerprint);
   if (!widget.enabled || widget.testPhones.has(phone)) {
     return { method: "supabase", ...(await requestOtp({ ...input, fingerprintChecked: true })) };
   }
-  if (input.ip) await enforceRateLimit("otp_request_ip", input.ip, "OTP_RATE_LIMITED");
+  if (input.ip) await enforceRequestIpLimits(input.ip);
   if (widget.authKeyIsWidgetToken) {
     // Codes could be sent but never confirmed; refuse before spending an SMS.
     logger.error("auth.msg91_authkey_misconfigured", { hint: "MSG91_AUTH_KEY equals the widget tokenAuth; set the account authkey" });
@@ -100,8 +118,8 @@ export async function startLogin(input: { phone: unknown; ip: string | null; fin
   const sent = await widgetSendOtp(widget.widgetId, widget.tokenAuth, phone.slice(1));
   if (!sent.ok) {
     logger.warn("auth.widget_send_failed", { phone: maskPhone(phone), reason: sent.reason, message: sent.message });
-    if (/limit|many|exceed/i.test(sent.message)) throw new AppError("OTP_RATE_LIMITED", { retryAfterSeconds: mode.retrySeconds });
-    throw new AppError("SMS_DELIVERY_FAILED");
+    if (sent.reason === "throttled") throw new AppError("OTP_RATE_LIMITED", { retryAfterSeconds: mode.retrySeconds });
+    throw new AppError("SMS_DELIVERY_FAILED", { cause: new Error(`msg91 sendOtp ${sent.reason}: ${sent.message}`) });
   }
   // Resend goes through startLogin again, so the timer must cover our own
   // per-phone cooldown too, not just MSG91's retry time.
@@ -117,12 +135,14 @@ export async function verifyWidgetCode(input: { phone: unknown; reqId: unknown; 
   if (typeof input.code !== "string" || !/^\d{4,8}$/.test(input.code)) throw new AppError("INVALID_OTP");
   if (typeof input.reqId !== "string" || !/^[\w-]{6,100}$/.test(input.reqId)) throw new AppError("OTP_INVALID_OR_EXPIRED");
 
-  await enforceRateLimit("otp_verify_phone", phone, "OTP_RATE_LIMITED");
-  if (input.ip) await enforceRateLimit("otp_verify_ip", input.ip, "OTP_RATE_LIMITED");
+  await enforceVerifyLimits(phone, input.ip);
 
   const checked = await widgetVerifyOtp(widget.widgetId, widget.tokenAuth, input.reqId, input.code);
   if (!checked.ok) {
-    if (checked.reason === "unavailable") throw new AppError("DEPENDENCY_FAILED");
+    logger.warn("auth.widget_verify_failed", { phone: maskPhone(phone), reason: checked.reason, message: checked.message });
+    // MSG91's own attempt limit is "too many attempts", not an outage.
+    if (checked.reason === "throttled") throw new AppError("OTP_RATE_LIMITED", { retryAfterSeconds: RESEND_COOLDOWN_SECONDS });
+    if (checked.reason === "unavailable") throw new AppError("DEPENDENCY_FAILED", { cause: new Error(`msg91 verifyOtp ${checked.message}`) });
     throw new AppError("OTP_INVALID_OR_EXPIRED");
   }
   return completeWidgetLogin(phone, checked.accessToken, input.next);
@@ -139,8 +159,7 @@ export async function signInWithWidgetToken(input: { phone: unknown; accessToken
     throw new AppError("OTP_INVALID_OR_EXPIRED");
   }
 
-  await enforceRateLimit("otp_verify_phone", phone, "OTP_RATE_LIMITED");
-  if (input.ip) await enforceRateLimit("otp_verify_ip", input.ip, "OTP_RATE_LIMITED");
+  await enforceVerifyLimits(phone, input.ip);
   return completeWidgetLogin(phone, input.accessToken, input.next);
 }
 

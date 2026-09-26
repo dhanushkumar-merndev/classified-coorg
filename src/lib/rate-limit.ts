@@ -10,8 +10,11 @@ export type RateLimitAction =
   | "otp_send_phone_hourly"
   | "otp_send_phone_daily"
   | "otp_request_ip"
+  | "otp_request_ip_daily"
   | "otp_request_fingerprint"
+  | "otp_request_fingerprint_daily"
   | "otp_verify_phone"
+  | "otp_verify_phone_daily"
   | "otp_verify_ip"
   | "document_read";
 

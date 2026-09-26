@@ -211,7 +211,7 @@ export function LoginForm() {
               {error && <FieldError role="alert">{error}</FieldError>}
             </Field>
             <Button type="submit" size="lg" className="w-full" disabled={pending || phoneInput.trim().length < 10 || cooldown > 0}>
-              {pending ? "Sending code…" : cooldown > 0 ? `Try again in ${cooldown}s` : "Send code"}
+              {pending ? "Sending code…" : cooldown > 0 ? `Try again in ${formatWait(cooldown)}` : "Send code"}
             </Button>
           </form>
         ) : (
@@ -237,7 +237,7 @@ export function LoginForm() {
                 <ArrowLeft /> Change number
               </Button>
               <Button variant="link" size="sm" onClick={() => sendCode()} disabled={pending || cooldown > 0} aria-live="polite">
-                {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+                {cooldown > 0 ? `Resend in ${formatWait(cooldown)}` : "Resend code"}
               </Button>
             </div>
           </div>
@@ -245,4 +245,12 @@ export function LoginForm() {
       </CardContent>
     </Card>
   );
+}
+
+/** Short waits count down in seconds; a daily abuse lockout reads in minutes
+ *  or hours instead of tens of thousands of seconds. */
+function formatWait(seconds: number): string {
+  if (seconds < 120) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)} min`;
+  return `${Math.ceil(seconds / 3600)} h`;
 }
