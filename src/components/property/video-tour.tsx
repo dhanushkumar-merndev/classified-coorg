@@ -3,7 +3,6 @@
 import type HlsType from "hls.js";
 import { Maximize, Minimize, Pause, Play, Settings2, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -336,23 +335,22 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
         onPointerLeave={onPointerLeave}
         style={isFS ? { cursor: controlsVisible ? "default" : "none" } : undefined}
       >
-        {/* ── Top bar: title only (no green badge) ── */}
-        <div className={cn(
-          "flex items-center gap-3 border-b bg-muted/40 px-4 py-3 transition-opacity duration-300",
-          isFS && "absolute inset-x-0 top-0 z-20 border-b-0 bg-gradient-to-b from-black/70 to-transparent text-white",
-          isFS && !controlsVisible && "pointer-events-none opacity-0",
-        )}>
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary",
-              isFS && "bg-white/15 text-white",
-            )}>
-              <Video className="size-4" aria-hidden="true" />
-            </span>
-            <span className="text-sm font-semibold">Video tour</span>
-            {durationSeconds ? <span className={cn("text-xs text-muted-foreground tabular-nums", isFS && "text-white/70")}>{formatDuration(durationSeconds)}</span> : null}
+        {/* ── Top bar: only in normal (non-fullscreen) mode ── */}
+        {!isFS && (
+          <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Video className="size-4" aria-hidden="true" />
+              </span>
+              <span className="text-sm font-semibold">Video tour</span>
+              {durationSeconds ? (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {formatDuration(durationSeconds)}
+                </span>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Video area ── */}
         <div
@@ -375,10 +373,10 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
             <button
               type="button"
               onClick={start}
-              className="group absolute inset-0 flex items-center justify-center bg-black/10 transition-colors hover:bg-black/20 focus-visible:outline-none"
+              className="group absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30 focus-visible:outline-none"
               aria-label={`Play video tour of ${title}`}
             >
-              <span className="flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform group-hover:scale-105 group-focus-visible:ring-4 group-focus-visible:ring-ring/50">
+              <span className="flex size-16 items-center justify-center rounded-full bg-black/60 text-white shadow-xl backdrop-blur-xs transition-transform group-hover:scale-110 group-focus-visible:ring-4 group-focus-visible:ring-white/50">
                 <Play className="ml-1 size-7 fill-current" aria-hidden="true" />
               </span>
             </button>
@@ -411,50 +409,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
             </div>
           )}
 
-          {/* ── Top-right controls: quality + fullscreen ── */}
-          {started && !failed && (
-            <div className={cn(
-              "absolute right-2 top-2 z-20 flex items-center gap-2 transition-opacity duration-300",
-              !controlsVisible && "pointer-events-none opacity-0",
-            )}>
-              {levels.length > 1 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="secondary" className="bg-black/60 text-white hover:bg-black/75" aria-label="Video quality">
-                      <Settings2 aria-hidden="true" />
-                      <span className="tabular-nums">{autoLabel}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-40" container={isFS ? playerRef.current : undefined}>
-                    <DropdownMenuLabel>Quality</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioGroup value={choice} onValueChange={pick}>
-                      <DropdownMenuRadioItem value={AUTO}>
-                        Auto{current && choice === AUTO ? <span className="ml-auto text-xs text-muted-foreground">{current}</span> : null}
-                      </DropdownMenuRadioItem>
-                      {levels.map((l) => (
-                        <DropdownMenuRadioItem key={l.index} value={String(l.index)}>
-                          {l.label}
-                          {l.label === "1080p" && <span className="ml-auto text-xs text-muted-foreground">HD</span>}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              <Button
-                size="sm"
-                variant="secondary"
-                className="bg-black/60 text-white hover:bg-black/75"
-                aria-label={isFS ? "Exit fullscreen" : "Enter fullscreen"}
-                onClick={toggleFullscreen}
-              >
-                {isFS ? <Minimize className="size-4" aria-hidden="true" /> : <Maximize className="size-4" aria-hidden="true" />}
-              </Button>
-            </div>
-          )}
-
-          {/* ── Bottom bar: progress + time ── */}
+          {/* ── Bottom bar: progress + time + controls ── */}
           {started && !failed && (
             <div
               data-progress-bar
@@ -504,8 +459,41 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
                   {formatDuration(currentTime)} / {formatDuration(duration)}
                 </span>
                 <div className="flex-1" />
-                {levels.length > 1 && autoLabel && (
-                  <span className="text-xs tabular-nums text-white/70">{autoLabel}</span>
+                {levels.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium tabular-nums text-white/90 hover:bg-white/20 hover:text-white transition-colors"
+                        aria-label="Video quality"
+                      >
+                        <Settings2 className="size-3.5" aria-hidden="true" />
+                        <span>{autoLabel}</span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      side="top"
+                      sideOffset={8}
+                      className="min-w-40"
+                      container={isFS ? playerRef.current : undefined}
+                    >
+                      <DropdownMenuLabel>Quality</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup value={choice} onValueChange={pick}>
+                        <DropdownMenuRadioItem value={AUTO}>
+                          Auto{current && choice === AUTO ? <span className="ml-auto text-xs text-muted-foreground">{current}</span> : null}
+                        </DropdownMenuRadioItem>
+                        {levels.map((l) => (
+                          <DropdownMenuRadioItem key={l.index} value={String(l.index)}>
+                            {l.label}
+                            {l.label === "1080p" && <span className="ml-auto text-xs text-muted-foreground">HD</span>}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
                 <button
                   type="button"
