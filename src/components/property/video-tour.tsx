@@ -536,27 +536,42 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _
                       <DropdownMenuRadioGroup value={choice} onValueChange={pick}>
                         <DropdownMenuRadioItem
                           value={AUTO}
-                          className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400"
+                          className={cn(
+                            "group cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400",
+                            current && choice === AUTO
+                              ? "[&_[data-slot=dropdown-menu-radio-item-indicator]]:hidden"
+                              : "pr-7 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400",
+                          )}
                         >
-                          Auto
+                          <span>Auto</span>
                           {current && choice === AUTO ? (
-                            <span className="ml-auto text-xs text-white/50">{current}</span>
+                            <span className="ml-auto text-xs text-white/50 transition-colors group-hover:text-emerald-400 group-focus:text-emerald-400 group-data-[highlighted]:text-emerald-400">
+                              {current}
+                            </span>
                           ) : null}
                         </DropdownMenuRadioItem>
-                        {levels.map((l) => (
-                          <DropdownMenuRadioItem
-                            key={l.index}
-                            value={String(l.index)}
-                            className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400"
-                          >
-                            {l.label}
-                            {l.label === "1080p" && (
-                              <span className="ml-auto rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-white/90">
-                                HD
-                              </span>
-                            )}
-                          </DropdownMenuRadioItem>
-                        ))}
+                        {levels.map((l) => {
+                          const hasRightText = l.label === "1080p";
+                          return (
+                            <DropdownMenuRadioItem
+                              key={l.index}
+                              value={String(l.index)}
+                              className={cn(
+                                "group cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-white/90 hover:bg-white/10 focus:bg-white/15 focus:text-white data-[state=checked]:text-emerald-400",
+                                hasRightText
+                                  ? "[&_[data-slot=dropdown-menu-radio-item-indicator]]:hidden"
+                                  : "pr-7 [&_[data-slot=dropdown-menu-radio-item-indicator]]:text-emerald-400",
+                              )}
+                            >
+                              <span>{l.label}</span>
+                              {l.label === "1080p" && (
+                                <span className="ml-auto rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold text-white/90 transition-colors group-hover:bg-emerald-500/20 group-hover:text-emerald-400 group-focus:bg-emerald-500/20 group-focus:text-emerald-400 group-data-[highlighted]:bg-emerald-500/20 group-data-[highlighted]:text-emerald-400">
+                                  HD
+                                </span>
+                              )}
+                            </DropdownMenuRadioItem>
+                          );
+                        })}
                       </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
