@@ -71,13 +71,15 @@ function exitFS() {
   if (webkit.webkitExitFullscreen) return webkit.webkitExitFullscreen();
 }
 
-export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, className }: VideoTourProps) {
+export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide: _shortSide, className }: VideoTourProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
   const moduleRef = useRef<Promise<HlsModule> | null>(null);
   const hlsRef = useRef<HlsType | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
   const [started, setStarted] = useState(false);
   const [failed, setFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -86,11 +88,31 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
   const [current, setCurrent] = useState<string | null>(null);
   const [isFS, setIsFS] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  // Brief flash of the big centered play/pause icon on toggle.
   const [flashIcon, setFlashIcon] = useState<"play" | "pause" | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Time state for the bottom bar.
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(durationSeconds ?? 0);
+  const [isSeeking, setIsSeeking] = useState(false);
 
   const loadModule = () => (moduleRef.current ??= import("hls.js"));
+
+  // ── Time tracking via rAF ─────────────────────────────────────────
+  const updateTime = useCallback(() => {
+    const video = videoRef.current;
+    if (video && !isSeeking) {
+      setCurrentTime(video.currentTime);
+      if (video.duration && Number.isFinite(video.duration)) setDuration(video.duration);
+    }
+    rafRef.current = requestAnimationFrame(updateTime);
+  }, [isSeeking]);
+
+  useEffect(() => {
+    if (started && !failed) {
+      rafRef.current = requestAnimationFrame(updateTime);
+    }
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [started, failed, updateTime]);
 
   // ── Idle-based auto-hide ──────────────────────────────────────────
   const resetIdleTimer = useCallback(() => {
@@ -105,15 +127,12 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
 
   const onPointerLeave = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
-    // Give a short grace period then hide.
     idleTimer.current = setTimeout(() => setShowControls(false), 600);
   }, []);
 
   // ── Fullscreen ────────────────────────────────────────────────────
   useEffect(() => {
-    function onFSChange() {
-      setIsFS(isFullscreen());
-    }
+    function onFSChange() { setIsFS(isFullscreen()); }
     document.addEventListener("fullscreenchange", onFSChange);
     document.addEventListener("webkitfullscreenchange", onFSChange);
     return () => {
@@ -148,13 +167,18 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     const onEnded = () => { setPlaying(false); setShowControls(true); };
+    const onDurationChange = () => {
+      if (video.duration && Number.isFinite(video.duration)) setDuration(video.duration);
+    };
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("ended", onEnded);
+    video.addEventListener("durationchange", onDurationChange);
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEnded);
+      video.removeEventListener("durationchange", onDurationChange);
     };
   }, []);
 
@@ -207,9 +231,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
       setFailed(true);
       return;
     }
-    video.play().catch(() => {
-      // Autoplay refused (e.g. the gesture expired).
-    });
+    video.play().catch(() => {});
     resetIdleTimer();
   }
 
@@ -252,25 +274,56 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
     toggleFullscreen();
   }, [toggleFullscreen]);
 
-  // Single click to toggle play/pause. We delay to distinguish from
-  // double-click (fullscreen). The timer is cleared on double-click.
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onVideoClick = useCallback((e: React.MouseEvent) => {
-    // Don't toggle when clicking on controls (buttons, menus).
-    if ((e.target as HTMLElement).closest("button, [role=menu], [data-radix-popper-content-wrapper]")) return;
+    if ((e.target as HTMLElement).closest("button, [role=menu], [data-radix-popper-content-wrapper], [data-progress-bar]")) return;
     if (clickTimer.current) clearTimeout(clickTimer.current);
     clickTimer.current = setTimeout(() => togglePlay(), 200);
   }, [togglePlay]);
 
   const onVideoDoubleClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("[data-progress-bar]")) return;
     if (clickTimer.current) clearTimeout(clickTimer.current);
     onDoubleClick(e);
   }, [onDoubleClick]);
 
-  const hdLabel = levels.some((level) => level.label === "2160p (4K)") ? "4K" : shortSide && shortSide >= 1080 ? "Full HD" : shortSide && shortSide >= 720 ? "HD" : null;
-  const autoLabel = choice === AUTO && current ? `Auto · ${current}` : choice === AUTO ? "Auto" : levels.find((l) => String(l.index) === choice)?.label;
+  // ── Progress bar seeking ──────────────────────────────────────────
+  const seekTo = useCallback((e: React.MouseEvent | React.PointerEvent) => {
+    const bar = progressRef.current;
+    const video = videoRef.current;
+    if (!bar || !video || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    video.currentTime = ratio * duration;
+    setCurrentTime(ratio * duration);
+  }, [duration]);
 
-  // Controls visible when: not started (poster), or cursor is active, or paused.
+  const onProgressPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsSeeking(true);
+    seekTo(e);
+    const onMove = (ev: PointerEvent) => {
+      const bar = progressRef.current;
+      const video = videoRef.current;
+      if (!bar || !video || !duration) return;
+      const rect = bar.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      video.currentTime = ratio * duration;
+      setCurrentTime(ratio * duration);
+    };
+    const onUp = () => {
+      setIsSeeking(false);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }, [duration, seekTo]);
+
+  const autoLabel = choice === AUTO && current ? `Auto · ${current}` : choice === AUTO ? "Auto" : levels.find((l) => String(l.index) === choice)?.label;
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  // Controls visible when: not started (poster), cursor is active, or paused.
   const controlsVisible = !started || showControls || !playing;
 
   return (
@@ -283,9 +336,9 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
         onPointerLeave={onPointerLeave}
         style={isFS ? { cursor: controlsVisible ? "default" : "none" } : undefined}
       >
-        {/* ── Top bar: title + badges ── */}
+        {/* ── Top bar: title only (no green badge) ── */}
         <div className={cn(
-          "flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3 transition-opacity duration-300",
+          "flex items-center gap-3 border-b bg-muted/40 px-4 py-3 transition-opacity duration-300",
           isFS && "absolute inset-x-0 top-0 z-20 border-b-0 bg-gradient-to-b from-black/70 to-transparent text-white",
           isFS && !controlsVisible && "pointer-events-none opacity-0",
         )}>
@@ -298,16 +351,6 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
             </span>
             <span className="text-sm font-semibold">Video tour</span>
             {durationSeconds ? <span className={cn("text-xs text-muted-foreground tabular-nums", isFS && "text-white/70")}>{formatDuration(durationSeconds)}</span> : null}
-          </div>
-          <div className="flex items-center gap-2">
-            {hdLabel && (
-              <span className={cn(
-                "inline-flex items-center rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success",
-                isFS && "bg-white/15 text-white",
-              )}>
-                {hdLabel}
-              </span>
-            )}
           </div>
         </div>
 
@@ -382,7 +425,7 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
                       <span className="tabular-nums">{autoLabel}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuContent align="end" className="min-w-40" container={isFS ? playerRef.current : undefined}>
                     <DropdownMenuLabel>Quality</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup value={choice} onValueChange={pick}>
@@ -408,6 +451,71 @@ export function VideoTour({ title, src, posterUrl, durationSeconds, shortSide, c
               >
                 {isFS ? <Minimize className="size-4" aria-hidden="true" /> : <Maximize className="size-4" aria-hidden="true" />}
               </Button>
+            </div>
+          )}
+
+          {/* ── Bottom bar: progress + time ── */}
+          {started && !failed && (
+            <div
+              data-progress-bar
+              className={cn(
+                "absolute inset-x-0 bottom-0 z-20 flex flex-col transition-opacity duration-300",
+                !controlsVisible && "pointer-events-none opacity-0",
+              )}
+            >
+              {/* Gradient scrim */}
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+
+              {/* Progress bar (clickable/draggable) */}
+              <div
+                ref={progressRef}
+                className="group relative z-10 flex h-5 cursor-pointer items-end px-0"
+                onPointerDown={onProgressPointerDown}
+              >
+                <div className="relative h-1 w-full transition-all group-hover:h-1.5">
+                  {/* Track */}
+                  <div className="absolute inset-0 rounded-full bg-white/30" />
+                  {/* Filled */}
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-white"
+                    style={{ width: `${progress}%` }}
+                  />
+                  {/* Thumb */}
+                  <div
+                    className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                    style={{ left: `${progress}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Time + controls row */}
+              <div className="relative z-10 flex items-center gap-3 px-3 pb-2.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                  className="flex size-8 shrink-0 items-center justify-center text-white hover:text-white/80"
+                  aria-label={playing ? "Pause" : "Play"}
+                >
+                  {playing
+                    ? <Pause className="size-4 fill-current" aria-hidden="true" />
+                    : <Play className="ml-0.5 size-4 fill-current" aria-hidden="true" />}
+                </button>
+                <span className="text-xs tabular-nums text-white/90">
+                  {formatDuration(currentTime)} / {formatDuration(duration)}
+                </span>
+                <div className="flex-1" />
+                {levels.length > 1 && autoLabel && (
+                  <span className="text-xs tabular-nums text-white/70">{autoLabel}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                  className="flex size-8 shrink-0 items-center justify-center text-white hover:text-white/80"
+                  aria-label={isFS ? "Exit fullscreen" : "Enter fullscreen"}
+                >
+                  {isFS ? <Minimize className="size-4" aria-hidden="true" /> : <Maximize className="size-4" aria-hidden="true" />}
+                </button>
+              </div>
             </div>
           )}
         </div>
