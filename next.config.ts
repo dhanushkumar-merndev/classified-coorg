@@ -10,14 +10,24 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.
 // Safari's native HLS loads them as media.
 const TIGRIS_HOSTS = "https://*.t3.storage.dev https://t3.storage.dev";
 
+// Meta (Facebook) Pixel on every page: fbevents.js and the per-pixel config
+// load from connect.facebook.net; events go to www.facebook.com/tr as an
+// image beacon or fetch. The inline bootstrap snippet is covered by
+// 'unsafe-inline'.
+const META_PIXEL = {
+  script: "https://connect.facebook.net",
+  img: "https://www.facebook.com",
+  connect: "https://www.facebook.com https://connect.facebook.net",
+};
+
 function buildCsp(extra: { script?: string; connect?: string; frame?: string; style?: string; img?: string; worker?: string } = {}) {
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} ${extra.script ?? ""}`,
+    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} ${META_PIXEL.script} ${extra.script ?? ""}`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${extra.style ?? ""}`,
     "font-src 'self' https://fonts.gstatic.com data:",
-    `img-src 'self' data: blob: https://api.dicebear.com ${extra.img ?? ""}`,
-    `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} ${TIGRIS_HOSTS} ${extra.connect ?? ""}`,
+    `img-src 'self' data: blob: https://api.dicebear.com ${META_PIXEL.img} ${extra.img ?? ""}`,
+    `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} ${TIGRIS_HOSTS} ${META_PIXEL.connect} ${extra.connect ?? ""}`,
     `media-src 'self' blob: ${TIGRIS_HOSTS}`,
     ...(extra.frame ? [`frame-src ${extra.frame}`] : []),
     `worker-src ${extra.worker ?? "'self' blob:"}`,
