@@ -77,7 +77,8 @@ export async function verifyOtp(input: { phone: unknown; token: unknown; next?: 
   if (profileError) logger.warn("auth.ensure_profile_failed", { code: profileError.code });
   deliverNotificationsSoon();
 
-  return { redirectTo: await landingPath(supabase, data.session.user.id, input.next) };
+  const userId = data.session.user.id;
+  return { userId, redirectTo: await landingPath(supabase, userId, input.next) };
 }
 
 /** After sign-in: admins go to the admin console, first-time users (no name
@@ -229,7 +230,7 @@ async function completeWidgetLogin(phone: string, accessToken: string, next: unk
   deliverNotificationsSoon();
   logger.info("auth.widget_sign_in", { phone: maskPhone(phone) });
   devTrace("widget_sign_in_ok", { phone: maskPhone(phone) });
-  return { redirectTo: await landingPath(supabase, userId, next) };
+  return { userId, redirectTo: await landingPath(supabase, userId, next) };
 }
 
 async function findOrCreatePhoneUser(service: ReturnType<typeof createServiceClient>, phone: string): Promise<string> {

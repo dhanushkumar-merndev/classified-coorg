@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 import {
   Building2, Heart, House, LayoutDashboard, LogOut, MessageSquare, ShieldCheck, UserRound,
 } from "lucide-react";
-import { signOutAction } from "@/app/(auth)/login/actions";
+import { logOutAction } from "@/app/(auth)/login/actions";
 import { hasRole, useAccount } from "@/components/providers/account-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,8 +21,21 @@ export function initials(name: string | null | undefined): string {
 }
 
 export function AccountMenu() {
-  const { status, account } = useAccount();
+  const { status, account, refresh } = useAccount();
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, startSignOut] = useTransition();
+
+  // Mirrors the login form: clear the server session, re-sync the header,
+  // then leave (the server cleared the cookies, so no client auth event fires).
+  function logOut() {
+    startSignOut(async () => {
+      await logOutAction();
+      await refresh();
+      router.replace("/");
+      router.refresh();
+    });
+  }
 
   if (status === "loading") return <Skeleton className="size-8 rounded-full" role="status" aria-label="Loading account" />;
   if (status === "anonymous" || !account) {
@@ -88,11 +102,7 @@ export function AccountMenu() {
           </>
         )}
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
-          <DropdownMenuItem asChild>
-            <button type="submit" className="w-full"><LogOut /> Log out</button>
-          </DropdownMenuItem>
-        </form>
+        <DropdownMenuItem onSelect={logOut} disabled={signingOut}><LogOut /> Log out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

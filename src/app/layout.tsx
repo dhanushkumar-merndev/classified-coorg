@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Roboto } from "next/font/google";
 import { AccountProvider } from "@/components/providers/account-provider";
+import { MetaPixel } from "@/components/providers/meta-pixel";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
@@ -108,6 +109,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
         </AccountProvider>
         <Toaster position="top-center" richColors closeButton />
+        <MetaPixel />
       </body>
     </html>
   );

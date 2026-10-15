@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PROPERTY_TYPE_LABELS } from "@/lib/labels";
+import { trackPixel } from "@/lib/meta-pixel";
 import { PROPERTY_TYPES } from "@/schemas/property.schema";
 
 export function NewListingForm() {
@@ -31,8 +32,9 @@ export function NewListingForm() {
         disabled={!type || pending}
         onClick={() => start(async () => {
           const r = await createDraftAction({ propertyType: type! });
-          if (r.error) toast.error(r.error.message);
-          else router.push(`/dashboard/properties/${r.data.id}/edit`);
+          if (r.error) { toast.error(r.error.message); return; }
+          trackPixel("StartListing", { property_type: type }, r.data.pixelEventId);
+          router.push(`/dashboard/properties/${r.data.id}/edit`);
         })}
       >
         {pending ? "Creating…" : "Continue"}

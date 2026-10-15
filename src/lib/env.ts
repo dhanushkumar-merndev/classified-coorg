@@ -103,3 +103,21 @@ export const widgetEnv = loader(
       env.APP_ENV === "production" || env.SMS_TEST_ALLOWLIST.split(",").map((s) => s.trim()).includes(phone),
   })),
 );
+
+// Meta Conversions API: the server copy of the pixel's funnel events. Unset
+// token → CAPI is off and only the browser pixel reports (never an error).
+const metaSchema = z.object({
+  NEXT_PUBLIC_META_PIXEL_ID: z.string().default(""),
+  META_CAPI_ACCESS_TOKEN: z.string().default(""),
+  META_CAPI_TEST_EVENT_CODE: z.string().default(""),
+});
+
+export const metaEnv = loader(
+  "Meta",
+  metaSchema.transform((env) => ({
+    enabled: Boolean(env.NEXT_PUBLIC_META_PIXEL_ID && env.META_CAPI_ACCESS_TOKEN),
+    pixelId: env.NEXT_PUBLIC_META_PIXEL_ID,
+    accessToken: env.META_CAPI_ACCESS_TOKEN,
+    testEventCode: env.META_CAPI_TEST_EVENT_CODE,
+  })),
+);

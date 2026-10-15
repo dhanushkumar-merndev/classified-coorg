@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { trackPixel } from "@/lib/meta-pixel";
 
 // AUTH-001..007: phone → one-time code → session. Real numbers use the MSG91
 // widget (MSG91 sends and checks the code, the server re-verifies its token);
@@ -68,6 +69,7 @@ export function LoginForm() {
       setCode("");
       return;
     }
+    trackPixel("Login", { new_user: result.data.newUser }, result.data.pixelEventId);
     await refresh();
     router.replace(result.data.redirectTo);
     router.refresh();

@@ -3,10 +3,11 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { runAction } from "@/lib/api/response";
-import { LISTING_ROLES, requireActor } from "@/lib/auth/dal";
+import { LISTING_ROLES, getActor, requireActor } from "@/lib/auth/dal";
 import { AppError, fromDatabaseError } from "@/lib/errors";
 import { STORED_DETAIL_OPTIONS } from "@/lib/listing/details";
 import { textHasContactDetails } from "@/lib/listing/contact-details";
+import { sendMetaEvent } from "@/lib/meta-capi";
 import { createSessionClient } from "@/lib/supabase/server";
 import { createDraft, transitionProperty, updateDraft } from "@/services/property.service";
 import { CACHE_TAGS } from "@/repositories/public-listings";
@@ -22,12 +23,20 @@ function invalidatePublic(propertyId: string) {
   revalidateTag(CACHE_TAGS.listing(propertyId), { expire: 0 });
 }
 
+/** Server copy of a seller funnel event for Meta; returns the event ID the
+ *  browser pixel reuses so Meta counts it once. The actor is already loaded
+ *  (memoized per request) by the service's requireActor. */
+async function sellerEvent(event: "StartListing" | "SubmitListing", params?: Record<string, unknown>) {
+  const actor = await getActor();
+  return sendMetaEvent(event, { userId: actor?.id, phone: actor?.phone }, params);
+}
+
 export async function createDraftAction(input: { propertyType: string }) {
   return runAction("property.createDraft", async () => {
     if (!(PROPERTY_TYPES as readonly string[]).includes(input.propertyType)) throw new AppError("VALIDATION_FAILED", { detail: "property_type" });
     const draft = await createDraft({ property_type: input.propertyType, listing_type: "sale" });
     revalidatePath("/dashboard/properties");
-    return draft;
+    return { ...draft, pixelEventId: await sellerEvent("StartListing", { property_type: input.propertyType }) };
   });
 }
 
@@ -52,7 +61,9 @@ export async function ownerTransitionAction(input: unknown) {
     const result = await transitionProperty(parsed.data);
     invalidatePublic(parsed.data.propertyId);
     revalidatePath("/dashboard/properties", "layout");
-    return result;
+    // A replayed request (same requestId) was already reported the first time.
+    const submitted = parsed.data.action === "submit" && !result.replayed;
+    return { ...result, pixelEventId: submitted ? await sellerEvent("SubmitListing") : undefined };
   });
 }
 

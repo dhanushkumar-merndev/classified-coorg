@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AREA_UNIT_LABELS, formatArea, formatPriceFull } from "@/lib/format";
+import { trackPixel } from "@/lib/meta-pixel";
 import {
   DOCUMENT_TYPE_LABELS, PROPERTY_TYPE_LABELS, SELLER_TYPE_LABELS, SUBMISSION_GAP_LABELS,
   VIDEO_ERROR_FALLBACK, VIDEO_ERROR_LABELS,
@@ -381,6 +382,7 @@ export function ListingEditor({ listing, locations }: { listing: OwnListingDetai
       toast.error(r.error.message);
     } else {
       toast.success("Submitted for review");
+      trackPixel("SubmitListing", { property_type: listing.property_type }, r.data.pixelEventId);
       router.push(`/dashboard/properties/${listing.id}`);
     }
   }

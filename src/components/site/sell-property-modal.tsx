@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useAccount } from "@/components/providers/account-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { trackPixel } from "@/lib/meta-pixel";
 
 // Seller promo for signed-out visitors, shown 3s after a full page load (so a
 // hard refresh shows it again, client navigation does not). The button sits in
@@ -46,7 +47,7 @@ export function SellPropertyModal() {
               asChild
               className="relative overflow-hidden bg-red-600 text-white shadow-[0_10px_25px_-5px_rgba(220,38,38,0.6),0_4px_10px_-2px_rgba(0,0,0,0.35)] hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-[0_14px_30px_-5px_rgba(220,38,38,0.75),0_6px_12px_-2px_rgba(0,0,0,0.4)]"
             >
-              <Link href="/dashboard/properties/new" prefetch={false} onClick={() => setOpen(false)}>
+              <Link href="/dashboard/properties/new" prefetch={false} onClick={() => { trackPixel("ListPropertyClick", { source: "promo_modal" }); setOpen(false); }}>
                 <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-1/4 animate-shine bg-linear-to-r from-transparent via-white/60 to-transparent" />
                 <Pointer className="animate-tap" /> List a property (Free)
               </Link>
