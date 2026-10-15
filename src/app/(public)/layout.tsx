@@ -1,4 +1,5 @@
 import { SiteFooter } from "@/components/site/site-footer";
+import { SellPropertyModal } from "@/components/site/sell-property-modal";
 import { SiteHeader } from "@/components/site/site-header";
 
 export default function PublicLayout({ children }: LayoutProps<"/">) {
@@ -7,6 +8,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
       <SiteHeader />
       <main id="main" className="flex-1">{children}</main>
       <SiteFooter />
+      <SellPropertyModal />
     </>
   );
 }
