@@ -12,12 +12,15 @@ const TIGRIS_HOSTS = "https://*.t3.storage.dev https://t3.storage.dev";
 
 // Meta (Facebook) Pixel on every page: fbevents.js and the per-pixel config
 // load from connect.facebook.net; events go to www.facebook.com/tr as an
-// image beacon or fetch. The inline bootstrap snippet is covered by
-// 'unsafe-inline'.
+// image beacon or fetch, and events too large for a URL are posted by a hidden
+// form into a facebook.com iframe (hence frame-src and form-action). The
+// inline bootstrap snippet is covered by 'unsafe-inline'.
 const META_PIXEL = {
   script: "https://connect.facebook.net",
   img: "https://www.facebook.com",
   connect: "https://www.facebook.com https://connect.facebook.net",
+  frame: "https://www.facebook.com",
+  form: "https://www.facebook.com",
 };
 
 function buildCsp(extra: { script?: string; connect?: string; frame?: string; style?: string; img?: string; worker?: string } = {}) {
@@ -29,11 +32,11 @@ function buildCsp(extra: { script?: string; connect?: string; frame?: string; st
     `img-src 'self' data: blob: https://api.dicebear.com ${META_PIXEL.img} ${extra.img ?? ""}`,
     `connect-src 'self' ${supabaseHost ? `https://${supabaseHost} wss://${supabaseHost}` : ""} ${TIGRIS_HOSTS} ${META_PIXEL.connect} ${extra.connect ?? ""}`,
     `media-src 'self' blob: ${TIGRIS_HOSTS}`,
-    ...(extra.frame ? [`frame-src ${extra.frame}`] : []),
+    `frame-src 'self' ${META_PIXEL.frame} ${extra.frame ?? ""}`,
     `worker-src ${extra.worker ?? "'self' blob:"}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self' ${META_PIXEL.form}`,
     "object-src 'none'",
     ...(isProd ? ["upgrade-insecure-requests"] : []),
   ].join("; ").replace(/ +/g, " ");
