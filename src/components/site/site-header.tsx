@@ -10,6 +10,7 @@ import { Logo } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { trackPixel } from "@/lib/meta-pixel";
 import { cn } from "@/lib/utils";
 
 // design.md §9: sticky, white, thin border; Buy · Locations · Property Types ·
@@ -58,7 +59,7 @@ export function SiteHeader() {
             <Link href="/dashboard/saved" prefetch={false}><Heart className={cn("transition-colors", hasSaved && "fill-red-600 text-red-600")} /></Link>
           </Button>
           <Button asChild className="hidden sm:inline-flex">
-            <Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post a property</Link>
+            <Link href="/dashboard/properties/new" prefetch={false} onClick={() => trackPixel("ListPropertyClick", { source: "header" })}><Plus /> Post a property</Link>
           </Button>
           <AccountMenu />
           <Sheet open={open} onOpenChange={setOpen}>
@@ -75,7 +76,7 @@ export function SiteHeader() {
                 ))}
                 <Link href="/dashboard/saved" prefetch={false} className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium hover:bg-muted"><Heart aria-hidden="true" className={cn("size-5 transition-colors", hasSaved && "fill-red-600 text-red-600")} />Saved</Link>
                 <Separator className="my-2" />
-                <Button asChild size="lg"><Link href="/dashboard/properties/new" prefetch={false}><Plus /> Post property</Link></Button>
+                <Button asChild size="lg"><Link href="/dashboard/properties/new" prefetch={false} onClick={() => trackPixel("ListPropertyClick", { source: "mobile_menu" })}><Plus /> Post property</Link></Button>
               </nav>
             </SheetContent>
           </Sheet>

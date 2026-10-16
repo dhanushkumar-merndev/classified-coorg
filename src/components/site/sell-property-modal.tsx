@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { trackPixel } from "@/lib/meta-pixel";
 
-// Seller promo for signed-out visitors, shown 3s after a full page load (so a
+// Seller promo for signed-out visitors, shown 1.5s after a full page load (so a
 // hard refresh shows it again, client navigation does not). The button sits in
 // the empty field area of the artwork (~82% down).
 
-const DELAY_MS = 3000;
+const DELAY_MS = 1500;
 
 // Module scope: survives layout remounts, resets on every full page load.
 let shownThisLoad = false;

@@ -9,7 +9,7 @@ export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "";
 /** Seller funnel, in order. Custom events: build custom conversions on them
  *  in Events Manager to optimise ads for a step. */
 export type PixelEvent =
-  | "ListPropertyClick" // "List a property" on the promo modal
+  | "ListPropertyClick" // promo modal or header "Post a property" (see `source`)
   | "Login" //             OTP verified, session created
   | "StartListing" //      new-listing form: type chosen, draft created
   | "SubmitListing"; //    listing submitted for review
