@@ -7,7 +7,6 @@ import { ResultsPagination } from "@/components/search/results-pagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireActor } from "@/lib/auth/dal";
 import { formatDate } from "@/lib/format";
-import { maskPhone } from "@/lib/auth/phone";
 import { listAdminUsers } from "@/repositories/admin";
 
 export const metadata = { title: "Users" };
@@ -37,7 +36,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                   return (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">{u.full_name ?? "—"}</TableCell>
-                      <TableCell>{u.phone ? maskPhone(u.phone) : "—"}</TableCell>
+                      <TableCell className="tabular-nums">{u.phone ? <a href={`tel:${u.phone}`} className="hover:underline">{u.phone}</a> : "—"}</TableCell>
                       <TableCell className="text-sm">{roles.join(", ")}</TableCell>
                       <TableCell>{u.is_suspended ? <ToneBadge tone="destructive">Suspended</ToneBadge> : <ToneBadge tone="success">Active</ToneBadge>}</TableCell>
                       <TableCell>{formatDate(u.created_at)}</TableCell>
